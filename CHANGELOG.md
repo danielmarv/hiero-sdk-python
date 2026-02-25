@@ -13,6 +13,7 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Added CodeRabbit review instructions and path mapping for the schedule module (`src/hiero_sdk_python/schedule/`) in `.coderabbit.yaml` (#1698)
 - Added advanced code review prompts for the `src/hiero_sdk_python/file` module in `.coderabbit.yaml` to guide reviewers in verifying proper `FileAppendTransaction` chunking constraints and nuances in memo handling for `FileUpdateTransaction` according to Hiero SDK best practices. (#1697)
 
+
 ### Src
 - Fix `TopicInfo.__str__()` to format `expiration_time` in UTC so unit tests pass in non-UTC environments. (#1800)
 - 
@@ -23,6 +24,7 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Refactored contract_delete_transaction example to use Client.from_env. (#1823)
 
 ### Docs
+- Reworked `docs/sdk_developers/training/workflow/11_submit_pull_request.md` into clearer step-based sections, improved PR instructions, and fixed the Discord help link path.
 - Added Python compatibility badge to README for improved visibility of supported versions (#1830)
 - Fixed Test Improvements header formatting in Good First Issue guidelines by adding missing space before parenthetical and removing stray bold marker (#1829)
 - Improved Google-style docstring for `compress_point_unchecked` in `crypto_utils.py`. (#1625)
