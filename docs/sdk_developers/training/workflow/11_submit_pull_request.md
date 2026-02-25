@@ -5,10 +5,26 @@ Once you have completed your work on a dedicated branch and followed all contrib
 This guide walks you through each step of the PR process.
 
 ### 1. Push Your Branch to Your Fork
-If you have not already pushed your changes:
+Before opening a pull request, make sure your latest commits are pushed to your fork.
 
+1. Verify you are on your feature branch:
+```bash
+git branch --show-current
+```
+
+2. If this is the first push for the branch, set upstream tracking:
+```bash
+git push -u origin <your-branch-name>
+```
+
+3. If the branch already exists on your fork, push normally:
 ```bash
 git push origin <your-branch-name>
+```
+
+If you amended commits or rebased and Git rejects your push, use:
+```bash
+git push --force-with-lease origin <your-branch-name>
 ```
 
 ### 2. Open a Pull Request to the Python SDK
