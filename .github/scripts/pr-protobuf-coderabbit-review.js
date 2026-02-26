@@ -128,17 +128,16 @@ No .proto diff was detected for this head commit.
   const checks = validationChecks.length > 0
     ? validationChecks
     : [
-      "buf lint",
-      "buf breaking --against \".git#ref=origin/main\"",
-      "buf build",
+      "uv run python generate_proto.py",
+      "uv run python -m compileall -q src/hiero_sdk_python/hapi",
     ];
 
   const validationSummary = validationStatus === "skipped"
     ? `Protobuf contract validation was intentionally skipped for this pull request.
 
 Reason:
-- No protobuf-impacting files changed, so buf lint/breaking/build were not required.`
-    : `Protobuf contract validation passed for this pull request.
+- No protobuf-impacting files changed, so generated protobuf validation was not required.`
+    : `Generated protobuf validation passed for this pull request.
 
 Validation checks passed:
 ${checks.map((check) => `- \`${check}\``).join("\n")}`;
