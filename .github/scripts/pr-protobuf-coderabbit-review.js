@@ -86,18 +86,20 @@ async function hasExistingTriggerComment(github, owner, repo, issueNumber, marke
   return false;
 }
 
-function buildCommentBody({
-  marker,
-  baseSha,
-  headSha,
-  changedFiles,
-  diffSnippet,
-  truncated,
-  scopeMode,
-  scopeReason,
-  validationStatus,
-  validationChecks,
-}) {
+function buildCommentBody(commentData) {
+  const {
+    marker,
+    baseSha,
+    headSha,
+    changedFiles,
+    diffSnippet,
+    truncated,
+    scopeMode,
+    scopeReason,
+    validationStatus,
+    validationChecks,
+  } = commentData;
+
   const fileLines = changedFiles
     .slice(0, MAX_FILES_TO_LIST)
     .map((filePath) => `- \`${filePath}\``);
