@@ -95,6 +95,8 @@ function buildCommentBody({
   truncated,
   scopeMode,
   scopeReason,
+  validationStatus,
+  validationChecks,
 }) {
   const fileLines = changedFiles
     .slice(0, MAX_FILES_TO_LIST)
@@ -121,15 +123,39 @@ ${diffSnippet}
 No .proto diff was detected for this head commit.
 `;
 
+  const checks = validationChecks.length > 0
+    ? validationChecks
+    : [
+      "buf lint",
+      "buf breaking --against \".git#ref=origin/main\"",
+      "buf build",
+    ];
+
+  const validationSummary = validationStatus === "skipped"
+    ? `Protobuf contract validation was intentionally skipped for this pull request.
+
+Reason:
+- No protobuf-impacting files changed, so buf lint/breaking/build were not required.`
+    : `Protobuf contract validation passed for this pull request.
+
+Validation checks passed:
+${checks.map((check) => `- \`${check}\``).join("\n")}`;
+
+  const reviewFocus = validationStatus === "skipped"
+    ? `Please perform a full review for this PR.
+
+Protobuf contract gate was skipped intentionally for this head commit because no protobuf-impacting files changed.
+If you identify code changes that implicitly alter protobuf contracts, flag them explicitly.`
+    : `Please review this PR with a protobuf-first contract focus:
+- PR changes must comply with protobuf compatibility rules.
+- Do not allow field renumbering/reuse, enum value reuse, or incompatible type changes.
+- Flag package/service renames unless accompanied by a migration strategy.
+- Verify generated protobuf artifacts and application logic align with updated message/service definitions.`;
+
   return `${marker}
 @coderabbitai full review
 
-Protobuf contract validation passed for this pull request.
-
-Validation checks passed:
-- \`buf lint\`
-- \`buf breaking --against ".git#ref=origin/main"\`
-- \`buf build\`
+${validationSummary}
 
 - Base commit: \`${baseSha}\`
 - Head commit: \`${headSha}\`
@@ -137,11 +163,7 @@ Validation checks passed:
 - Scope mode: \`${scopeMode}\`
 ${scopeReason ? `- Scope detail: ${scopeReason}\n` : ""}
 
-Please review this PR with a protobuf-first contract focus:
-- PR changes must comply with protobuf compatibility rules.
-- Do not allow field renumbering/reuse, enum value reuse, or incompatible type changes.
-- Flag package/service renames unless accompanied by a migration strategy.
-- Verify generated protobuf artifacts and application logic align with updated message/service definitions.
+${reviewFocus}
 
 Changed .proto files:
 ${fileList}${hiddenLine}
@@ -173,6 +195,8 @@ async function main({ github, context }) {
   const filesPath = process.env.PROTOBUF_FILES_PATH || "";
   const scopeMode = process.env.PROTOBUF_SCOPE_MODE || "full";
   const scopeReason = process.env.PROTOBUF_SCOPE_REASON || "";
+  const validationStatus = process.env.PROTOBUF_VALIDATION_STATUS || "passed";
+  const validationChecks = parseUniqueLines((process.env.PROTOBUF_VALIDATION_CHECKS || "").replace(/,/g, "\n"));
   const isDryRun = (process.env.DRY_RUN || "false").toLowerCase() === "true";
 
   if (!baseSha || !headSha || !filesPath) {
@@ -203,6 +227,8 @@ async function main({ github, context }) {
     truncated,
     scopeMode,
     scopeReason,
+    validationStatus,
+    validationChecks,
   });
 
   if (isDryRun) {

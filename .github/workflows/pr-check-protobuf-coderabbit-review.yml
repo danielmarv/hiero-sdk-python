@@ -18,10 +18,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  protobuf-contract-gate:
-    name: Protobuf Contract Gate
+  detect-protobuf-impact:
+    name: Detect Protobuf Impact
     runs-on: ubuntu-latest
-
+    outputs:
+      protobuf_required: ${{ steps.detect.outputs.protobuf_required }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
@@ -33,15 +34,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up buf
-        uses: bufbuild/buf-setup-action@v1
-        with:
-          version: 1.57.0
-
-      - name: Ensure main ref for breaking-change comparison
-        run: git fetch --no-tags --prune --depth=1 origin main:refs/remotes/origin/main
-
-      - name: Prepare protobuf change metadata
+      - name: Detect protobuf-impacting changes
+        id: detect
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -49,19 +43,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          files_path="${RUNNER_TEMP}/protobuf_changed_files.txt"
-          diff_path="${RUNNER_TEMP}/protobuf_contract.diff"
+          changed_files="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")"
 
-          git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- '*.proto' | sort -u > "${files_path}"
-          git diff "${BASE_SHA}" "${HEAD_SHA}" -- '*.proto' > "${diff_path}"
+          if printf "%s\n" "${changed_files}" | grep -Eq '(^\.protos/.*\.proto$|^buf(\.gen|\.work)?\.yaml$|^buf\.yaml$|^generate_proto\.py$|^src/hiero_sdk_python/hapi/.*\.(py|pyi)$)'; then
+            echo "protobuf_required=true" >> "${GITHUB_OUTPUT}"
+            echo "::notice::Protobuf-impacting changes detected; protobuf contract gate is required."
+          else
+            echo "protobuf_required=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::No protobuf-impacting changes detected; protobuf contract gate will be skipped."
+          fi
 
-          echo "BASE_SHA=${BASE_SHA}" >> "${GITHUB_ENV}"
-          echo "HEAD_SHA=${HEAD_SHA}" >> "${GITHUB_ENV}"
-          echo "PROTOBUF_FILES_PATH=${files_path}" >> "${GITHUB_ENV}"
-          echo "PROTOBUF_DIFF_PATH=${diff_path}" >> "${GITHUB_ENV}"
-
+  remove-stale-handoff-label:
+    name: Remove Stale CodeRabbit Handoff Label
+    needs: detect-protobuf-impact
+    if: github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    steps:
       - name: Remove stale ready-for-coderabbit label
-        if: github.event.pull_request.head.repo.fork == false
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
@@ -84,6 +82,31 @@ jobs:
               }
             }
 
+  protobuf-contract-gate:
+    name: Protobuf Contract Gate
+    needs:
+      - detect-protobuf-impact
+    if: needs.detect-protobuf-impact.outputs.protobuf_required == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.57.0
+
+      - name: Ensure main ref for breaking-change comparison
+        run: git fetch --no-tags --prune --depth=1 origin main:refs/remotes/origin/main
+
       - name: buf lint
         run: buf lint
 
@@ -93,8 +116,61 @@ jobs:
       - name: buf build
         run: buf build
 
+  protobuf-not-required:
+    name: Protobuf Contract Gate (Skipped)
+    needs:
+      - detect-protobuf-impact
+    if: needs.detect-protobuf-impact.outputs.protobuf_required != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip protobuf contract gate
+        run: echo "::notice::No protobuf-impacting files changed. Skipping buf lint/breaking/build."
+
+  coderabbit-handoff:
+    name: CodeRabbit Handoff
+    needs:
+      - detect-protobuf-impact
+      - remove-stale-handoff-label
+      - protobuf-contract-gate
+      - protobuf-not-required
+    if: >
+      github.event.pull_request.head.repo.fork == false &&
+      (
+        (needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && needs.protobuf-contract-gate.result == 'success') ||
+        (needs.detect-protobuf-impact.outputs.protobuf_required != 'true' && needs.protobuf-not-required.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Prepare protobuf change metadata
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          files_path="${RUNNER_TEMP}/protobuf_changed_files.txt"
+          diff_path="${RUNNER_TEMP}/protobuf_contract.diff"
+
+          git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- '*.proto' | sort -u > "${files_path}"
+          git diff "${BASE_SHA}" "${HEAD_SHA}" -- '*.proto' > "${diff_path}"
+
+          echo "BASE_SHA=${BASE_SHA}" >> "${GITHUB_ENV}"
+          echo "HEAD_SHA=${HEAD_SHA}" >> "${GITHUB_ENV}"
+          echo "PROTOBUF_FILES_PATH=${files_path}" >> "${GITHUB_ENV}"
+          echo "PROTOBUF_DIFF_PATH=${diff_path}" >> "${GITHUB_ENV}"
+
       - name: Add ready-for-coderabbit label
-        if: github.event.pull_request.head.repo.fork == false
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
@@ -120,7 +196,7 @@ jobs:
                 repo,
                 name: label,
                 color: "0E8A16",
-                description: "Protobuf contract checks passed; ready for CodeRabbit review.",
+                description: "Protobuf contract checks passed or were skipped (no protobuf-impacting changes).",
               }).catch((createError) => {
                 if (createError?.status !== 422) {
                   throw createError;
@@ -136,21 +212,35 @@ jobs:
               core.info(`Created and added label '${label}' to PR #${issueNumber}.`);
             }
 
-      - name: Trigger protobuf-driven CodeRabbit review
-        if: github.event.pull_request.head.repo.fork == false
+      - name: Trigger CodeRabbit review
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           BASE_SHA: ${{ env.BASE_SHA }}
           HEAD_SHA: ${{ env.HEAD_SHA }}
           PROTOBUF_DIFF_PATH: ${{ env.PROTOBUF_DIFF_PATH }}
           PROTOBUF_FILES_PATH: ${{ env.PROTOBUF_FILES_PATH }}
-          PROTOBUF_SCOPE_MODE: contract-first
-          PROTOBUF_SCOPE_REASON: Triggered only after buf lint, buf breaking, and buf build passed.
+          PROTOBUF_SCOPE_MODE: ${{ needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && 'contract-first' || 'protobuf-gate-skipped' }}
+          PROTOBUF_SCOPE_REASON: ${{ needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && 'Triggered after buf lint, buf breaking, and buf build passed.' || 'No protobuf-impacting files changed in this PR; protobuf contract gate skipped intentionally.' }}
+          PROTOBUF_VALIDATION_STATUS: ${{ needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && 'passed' || 'skipped' }}
+          PROTOBUF_VALIDATION_CHECKS: buf lint,buf breaking --against ".git#ref=origin/main",buf build
         with:
           script: |
             const script = require('./.github/scripts/pr-protobuf-coderabbit-review.js');
             await script({ github, context });
 
+  fork-handoff-note:
+    name: Fork Handoff Note
+    needs:
+      - detect-protobuf-impact
+      - protobuf-contract-gate
+      - protobuf-not-required
+    if: >
+      github.event.pull_request.head.repo.fork == true &&
+      (
+        (needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && needs.protobuf-contract-gate.result == 'success') ||
+        (needs.detect-protobuf-impact.outputs.protobuf_required != 'true' && needs.protobuf-not-required.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    steps:
       - name: Note fork limitation
-        if: github.event.pull_request.head.repo.fork == true
         run: echo "::notice::Skipping label/comment handoff for fork PRs because pull_request tokens are read-only."
