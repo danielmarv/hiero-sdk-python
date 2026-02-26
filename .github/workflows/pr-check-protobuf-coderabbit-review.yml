@@ -1,4 +1,4 @@
-name: PR Protobuf Contract + CodeRabbit Gate
+name: PR Generated Protobuf Validation + CodeRabbit Gate
 
 on:
   pull_request:
@@ -39,10 +39,11 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
 
-          changed_files="$(git diff --name-only "${BASE_SHA}...${GITHUB_SHA}")"
+          changed_files="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}")"
 
           if printf "%s\n" "${changed_files}" | grep -Eq '(^\.protos/.*\.proto$|^generate_proto\.py$|^src/hiero_sdk_python/.*\.(py|pyi)$)'; then
             echo "protobuf_required=true" >> "${GITHUB_OUTPUT}"
@@ -81,8 +82,8 @@ jobs:
               }
             }
 
-  protobuf-contract-gate:
-    name: Protobuf Contract Gate
+  protobuf-generated-validation:
+    name: Protobuf Generated Validation
     needs:
       - detect-protobuf-impact
     if: needs.detect-protobuf-impact.outputs.protobuf_required == 'true'
@@ -117,13 +118,13 @@ jobs:
         run: uv run python -m compileall -q src/hiero_sdk_python/hapi
 
   protobuf-not-required:
-    name: Protobuf Contract Gate (Skipped)
+    name: Protobuf Generated Validation (Skipped)
     needs:
       - detect-protobuf-impact
     if: needs.detect-protobuf-impact.outputs.protobuf_required != 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Skip protobuf contract gate
+      - name: Skip generated protobuf validation gate
         run: echo "::notice::No protobuf-impacting files changed. Skipping generated protobuf validation."
 
   coderabbit-handoff:
@@ -131,12 +132,12 @@ jobs:
     needs:
       - detect-protobuf-impact
       - remove-stale-handoff-label
-      - protobuf-contract-gate
+      - protobuf-generated-validation
       - protobuf-not-required
     if: >
       github.event.pull_request.head.repo.fork == false &&
       (
-        (needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && needs.protobuf-contract-gate.result == 'success') ||
+        (needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && needs.protobuf-generated-validation.result == 'success') ||
         (needs.detect-protobuf-impact.outputs.protobuf_required != 'true' && needs.protobuf-not-required.result == 'success')
       )
     runs-on: ubuntu-latest
@@ -162,8 +163,8 @@ jobs:
           files_path="${RUNNER_TEMP}/protobuf_changed_files.txt"
           diff_path="${RUNNER_TEMP}/protobuf_contract.diff"
 
-          git diff --name-only "${BASE_SHA}...${GITHUB_SHA}" -- '*.proto' | sort -u > "${files_path}"
-          git diff "${BASE_SHA}...${GITHUB_SHA}" -- '*.proto' > "${diff_path}"
+          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" -- '*.proto' | sort -u > "${files_path}"
+          git diff "${BASE_SHA}...${HEAD_SHA}" -- '*.proto' > "${diff_path}"
 
           echo "BASE_SHA=${BASE_SHA}" >> "${GITHUB_ENV}"
           echo "HEAD_SHA=${HEAD_SHA}" >> "${GITHUB_ENV}"
@@ -232,12 +233,12 @@ jobs:
     name: Fork Handoff Note
     needs:
       - detect-protobuf-impact
-      - protobuf-contract-gate
+      - protobuf-generated-validation
       - protobuf-not-required
     if: >
       github.event.pull_request.head.repo.fork == true &&
       (
-        (needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && needs.protobuf-contract-gate.result == 'success') ||
+        (needs.detect-protobuf-impact.outputs.protobuf_required == 'true' && needs.protobuf-generated-validation.result == 'success') ||
         (needs.detect-protobuf-impact.outputs.protobuf_required != 'true' && needs.protobuf-not-required.result == 'success')
       )
     runs-on: ubuntu-latest
