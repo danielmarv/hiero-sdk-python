@@ -13,6 +13,10 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Added CodeRabbit review instructions and path mapping for the schedule module (`src/hiero_sdk_python/schedule/`) in `.coderabbit.yaml` (#1698)
 - Added advanced code review prompts for the `src/hiero_sdk_python/file` module in `.coderabbit.yaml` to guide reviewers in verifying proper `FileAppendTransaction` chunking constraints and nuances in memo handling for `FileUpdateTransaction` according to Hiero SDK best practices. (#1697)
 
+### Fixed
+
+- Fixed duplication in GitHub bot next issue recommendations by parsing actual issue descriptions instead of blind truncation (#1658)
+
 ### Src
 - Fix `TopicInfo.__str__()` to format `expiration_time` in UTC so unit tests pass in non-UTC environments. (#1800)
 - 
@@ -23,15 +27,21 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Refactored contract_delete_transaction example to use Client.from_env. (#1823)
 
 ### Docs
+
+- docs: Improving formatting will make the pull request process clearer. (`#1858`)
 - Added Python compatibility badge to README for improved visibility of supported versions (#1830)
 - Fixed Test Improvements header formatting in Good First Issue guidelines by adding missing space before parenthetical and removing stray bold marker (#1829)
 - Improved Google-style docstring for `compress_point_unchecked` in `crypto_utils.py`. (#1625)
 - chore: update office hours and community calls to use direct links (`#1804`)
 - docs: create workflow best practices guide (`docs/workflows/03-workflow-best-practices.md`) (`#1743`)
 - Fixed broken `MAINTAINERS.md` relative link in `docs/sdk_developers/bug.md` by using the repository-root GitHub URL. (#1666)
+- docs(setup): specify unit tests for local setup verification. (#1856)
+
+
 
 ### Tests
 - Format `tests/unit/endpoint_test.py` using black. (`#1792`)
+- Implement TCK JSON-RPC server with request handling and error management
 
 ### .github
 - Added triage members max assignment is protected from being a mentor in `.github/scripts/bot-assignment-check.sh`. (#1718)
