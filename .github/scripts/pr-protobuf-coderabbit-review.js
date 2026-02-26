@@ -1,4 +1,4 @@
-// Triggers a CodeRabbit full review with generated protobuf diff context for PRs.
+// Triggers a protobuf-driven CodeRabbit full review for PRs.
 
 const fs = require("fs");
 
@@ -104,32 +104,48 @@ function buildCommentBody({
 
   const fileList = fileLines.length > 0
     ? fileLines.join("\n")
-    : "- (unable to compute changed generated files)";
+    : "- (no .proto files changed in this PR)";
 
   const hiddenLine = hiddenCount > 0 ? `\n- ...and ${hiddenCount} more files` : "";
 
   const truncatedSuffix = truncated ? " (truncated)" : "";
 
-  return `${marker}
-@coderabbitai full review
-
-Generated protobuf build diff detected for this pull request.
-
-- Base commit: \`${baseSha}\`
-- Head commit: \`${headSha}\`
-- Generated protobuf files changed: ${changedFiles.length}
-- Scope mode: \`${scopeMode}\`
-${scopeReason ? `- Scope detail: ${scopeReason}\n` : ""}
-
-Please review this PR with focus on whether code changes remain aligned with these generated protobuf artifacts.
-
-Changed generated protobuf files:
-${fileList}${hiddenLine}
-
-Generated protobuf diff excerpt${truncatedSuffix}:
+  const diffSection = diffSnippet.trim()
+    ? `
+Protobuf contract diff excerpt${truncatedSuffix}:
 \`\`\`diff
 ${diffSnippet}
 \`\`\`
+`
+    : `
+No .proto diff was detected for this head commit.
+`;
+
+  return `${marker}
+@coderabbitai full review
+
+Protobuf contract validation passed for this pull request.
+
+Validation checks passed:
+- \`buf lint\`
+- \`buf breaking --against ".git#ref=origin/main"\`
+- \`buf build\`
+
+- Base commit: \`${baseSha}\`
+- Head commit: \`${headSha}\`
+- Changed .proto files: ${changedFiles.length}
+- Scope mode: \`${scopeMode}\`
+${scopeReason ? `- Scope detail: ${scopeReason}\n` : ""}
+
+Please review this PR with a protobuf-first contract focus:
+- PR changes must comply with protobuf compatibility rules.
+- Do not allow field renumbering/reuse, enum value reuse, or incompatible type changes.
+- Flag package/service renames unless accompanied by a migration strategy.
+- Verify generated protobuf artifacts and application logic align with updated message/service definitions.
+
+Changed .proto files:
+${fileList}${hiddenLine}
+${diffSection}
 `;
 }
 
@@ -159,22 +175,16 @@ async function main({ github, context }) {
   const scopeReason = process.env.PROTOBUF_SCOPE_REASON || "";
   const isDryRun = (process.env.DRY_RUN || "false").toLowerCase() === "true";
 
-  if (!baseSha || !headSha || !diffPath || !filesPath) {
+  if (!baseSha || !headSha || !filesPath) {
     console.log("Missing required environment values. Skipping protobuf review trigger.", {
       hasBaseSha: Boolean(baseSha),
       hasHeadSha: Boolean(headSha),
-      hasDiffPath: Boolean(diffPath),
       hasFilesPath: Boolean(filesPath),
     });
     return;
   }
 
   const fullDiff = readTextFileOrEmpty(diffPath);
-  if (!fullDiff.trim()) {
-    console.log("No generated protobuf diff found. Skipping CodeRabbit trigger.");
-    return;
-  }
-
   const changedFiles = parseUniqueLines(readTextFileOrEmpty(filesPath));
   const { text: diffSnippet, truncated } = truncateDiff(fullDiff, MAX_DIFF_CHARS);
   const marker = `${MARKER_PREFIX} ${headSha} -->`;

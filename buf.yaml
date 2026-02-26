@@ -1,0 +1,11 @@
+# For details on buf.yaml configuration, see:
+# https://buf.build/docs/configuration/v2/buf-yaml/
+version: v2
+modules:
+  - path: .protos
+lint:
+  use:
+    - MINIMAL
+breaking:
+  use:
+    - FILE

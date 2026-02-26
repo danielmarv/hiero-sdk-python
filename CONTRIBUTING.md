@@ -56,6 +56,32 @@ Thank you for your interest in contributing to the Hiero Python SDK!
    - Tests
    - Changelog documentation
 
+#### 🔒 Protobuf Contract-First PR Gate
+
+Pull requests now follow a protobuf-first review workflow:
+
+1. GitHub Actions runs protobuf validation before CodeRabbit handoff:
+   - `buf lint`
+   - `buf breaking --against ".git#ref=origin/main"`
+   - `buf build`
+2. If any protobuf check fails, the PR fails and no CodeRabbit handoff occurs.
+3. After all protobuf checks pass, CI:
+   - Adds the `ready-for-coderabbit` label
+   - Posts a protobuf-driven `@coderabbitai full review` trigger comment
+4. CodeRabbit feedback is expected to enforce protobuf compatibility and alignment between:
+   - `.proto` definitions
+   - Generated protobuf artifacts
+   - Application code behavior
+
+Before pushing protobuf-related changes, run the same checks locally when possible:
+
+```bash
+git fetch --no-tags --prune --depth=1 origin main:refs/remotes/origin/main
+buf lint
+buf breaking --against ".git#ref=origin/main"
+buf build
+```
+
 ---
 
 ### 🐛 Bug Reports

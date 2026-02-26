@@ -18,6 +18,8 @@ reviews:
   in_progress_fortune: false # Do not stall time with a message (spammy)
   poem: false # Do not write a literal poem (spammy)
   enable_prompt_for_ai_agents: false # Disable prompts for AI agents (spammy)
+  auto_review:
+    enabled: false # Disable ungated automatic reviews; CI triggers review only after protobuf validation.
 
   # TOKEN REVIEW INSTRUCTIONS
   token_review_instructions: &token_review_instructions |
@@ -944,7 +946,39 @@ reviews:
       - Do NOT block the PR on them.
       - Do NOT suggest fixes inline.
       - Instead, aggregate all out-of-scope issues into a single comment with a list of recommendations for one or more follow-up issues that can be created.
+    - If a PR changes `.proto` files, treat protobuf compatibility and contract alignment as a primary criterion for affected application code.
   path_instructions:
+    - path: ".protos/**/*.proto"
+      instructions: |
+        You are acting as a protobuf contract reviewer.
+
+        Review goals:
+        - Enforce protobuf backward-compatibility (proto3-safe evolution).
+        - Flag field renumbering, field number reuse, enum value reuse, and incompatible type changes.
+        - Flag package/service renames unless a migration strategy is clearly provided.
+        - Suggest safe alternatives such as additive fields and reserved tags/names.
+
+        Cross-check expectations:
+        - If .proto definitions changed, verify generated artifacts and application code remain aligned with updated message/service contracts.
+        - Escalate any contract drift between .proto definitions and implementation behavior.
+
+    - path: "src/hiero_sdk_python/hapi/**/*.py"
+      instructions: |
+        You are reviewing generated protobuf Python artifacts.
+
+        Focus:
+        - Verify generated files are consistent with changed .proto contracts.
+        - Flag stale generated code, missing regenerated outputs, or inconsistent serialization surfaces.
+        - Ensure generated API shapes used by application code align with current protobuf definitions.
+
+    - path: "src/hiero_sdk_python/hapi/**/*.pyi"
+      instructions: |
+        You are reviewing generated protobuf Python type stubs.
+
+        Focus:
+        - Verify .pyi stubs are consistent with generated .py files and current .proto definitions.
+        - Flag stale or missing type updates that would cause contract drift for SDK users.
+
     # --- CODEOWNERS REVIEW INSTRUCTIONS ---
     - path: ".github/CODEOWNERS"
       instructions: |
