@@ -58,6 +58,7 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Added workflow documentation guide (`docs/github/04_workflow_documentation.md`) with best practices for documenting GitHub workflows and automation scripts (#1745)
 - Updated CodeRabbit workflow and script review instructions to nudge higher-quality patterns without imposing rigid rules (`#1799`)
 - Added hiero-sdk-js to the next issue recommendation bot (`#1847`)
+- enhance(bot-pr-missing-linked-issue): add warning before auto-closing unlinked PRs (#1886)
 
 ## [0.2.0] - 2026-11-02
 
