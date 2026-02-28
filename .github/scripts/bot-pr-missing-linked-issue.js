@@ -156,8 +156,6 @@ module.exports = async ({ github, context }) => {
         `Please get assigned to one of the linked issues and keep the link in this PR description.`,
         `For Good First Issues, comment \`/assign\` on the issue.`,
         ``,
-        `📖 Guide:`,
-        `[docs/sdk_developers/how_to_link_issues.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/docs/sdk_developers/how_to_link_issues.md)`,
         ``,
         `Thanks!`
       ].join('\n');
