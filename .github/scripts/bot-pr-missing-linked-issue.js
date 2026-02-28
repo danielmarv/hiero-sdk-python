@@ -154,7 +154,8 @@ module.exports = async ({ github, context }) => {
         `Linked issue(s): ${linkedIssueList}`,
         ``,
         `Please get assigned to one of the linked issues and keep the link in this PR description.`,
-        `For Good First Issues, comment \`/assign\` on the issue.`,
+        `Comment \`/assign\` on the issue to request assignment (works for all issue types).`,
+        `Note: assignment for intermediate/advanced issues is not automatic.`,
         ``,
         ``,
         `Thanks!`
