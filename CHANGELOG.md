@@ -58,6 +58,8 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Added workflow documentation guide (`docs/github/04_workflow_documentation.md`) with best practices for documenting GitHub workflows and automation scripts (#1745)
 - Updated CodeRabbit workflow and script review instructions to nudge higher-quality patterns without imposing rigid rules (`#1799`)
 - Added hiero-sdk-js to the next issue recommendation bot (`#1847`)
+feat(bot): enforce linked issue assignment check for PR authors. (#1889)
+
 
 ## [0.2.0] - 2026-11-02
 
