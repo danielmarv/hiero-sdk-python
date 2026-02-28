@@ -34,6 +34,7 @@ async function getLinkedOpenIssues(github, owner, repo, prNumber) {
   }
 }
 
+
 function isAuthorAssignedToAnyIssue(issues, authorLogin) {
   return issues.some(issue =>
     (issue.assignees?.nodes || []).some(assignee => assignee.login === authorLogin)
