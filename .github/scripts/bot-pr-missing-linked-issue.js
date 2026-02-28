@@ -60,7 +60,7 @@ module.exports = async ({ github, context }) => {
         `Linking pull requests to issues helps us significantly with reviewing pull requests and keeping the repository healthy.`,
         ``,
         `🚨 **This pull request does not have an issue linked.**`,
-        ``,
+        ` templates and examples for how to link an issue in the PR description:`,
         `Please link an issue using the following format:`,
         '```',
         'Fixes #123',
