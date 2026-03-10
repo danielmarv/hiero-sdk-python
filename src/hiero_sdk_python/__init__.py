@@ -96,6 +96,9 @@ from .query.account_info_query import AccountInfoQuery
 # Address book
 from .address_book.endpoint import Endpoint
 from .address_book.node_address import NodeAddress
+from .address_book.registered_service_endpoint import RegisteredServiceEndpoint
+from .address_book.registered_service_endpoint import EndpointType
+from .address_book.registered_service_endpoint import BlockNodeApi
 
 # Logger
 from .logger.logger import Logger
@@ -135,6 +138,9 @@ from .schedule.schedule_delete_transaction import ScheduleDeleteTransaction
 from .nodes.node_create_transaction import NodeCreateTransaction
 from .nodes.node_update_transaction import NodeUpdateTransaction
 from .nodes.node_delete_transaction import NodeDeleteTransaction
+from .nodes.registered_node_create_transaction import RegisteredNodeCreateTransaction
+from .nodes.registered_node_update_transaction import RegisteredNodeUpdateTransaction
+from .nodes.registered_node_delete_transaction import RegisteredNodeDeleteTransaction
 
 # PRNG
 from .prng_transaction import PrngTransaction

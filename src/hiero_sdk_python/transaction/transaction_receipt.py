@@ -187,6 +187,19 @@ class TransactionReceipt:
         return self._receipt_proto.node_id
 
     @property
+    def registered_node_id(self) -> int:
+        """
+        Returns the registered node ID associated with this receipt.
+
+        This value is set following a createRegisteredNode transaction
+        and is not set following any other transaction.
+
+        Returns:
+            int: The registered node ID if present; otherwise, 0.
+        """
+        return getattr(self._receipt_proto, 'registered_node_id', 0)
+
+    @property
     def topic_sequence_number(self) -> int:
         """
         Returns the topic sequence number associated with this receipt.
