@@ -324,7 +324,9 @@ class Transaction(_Executable):
         client: "Client",
         timeout: int | float | None = None,
         wait_for_receipt: Literal[True] = True,
-    ) -> "TransactionReceipt": ...
+        validate_status: bool = False
+    ) -> "TransactionReceipt":
+        ...
 
     @overload
     def execute(
@@ -332,10 +334,16 @@ class Transaction(_Executable):
         client: "Client",
         timeout: int | float | None = None,
         wait_for_receipt: Literal[False] = False,
-    ) -> "TransactionResponse": ...
+        validate_status: bool = False
+    ) -> "TransactionResponse":
+        ...
 
     def execute(
-        self, client: "Client", timeout: int | float | None = None, wait_for_receipt: bool = True
+        self, 
+        client: "Client", 
+        timeout: int | float | None = None, 
+        wait_for_receipt: bool = True,
+        validate_status: bool = False
     ) -> TransactionReceipt | TransactionResponse:
         """
         Executes the transaction on the Hedera network using the provided client.
@@ -347,6 +355,7 @@ class Transaction(_Executable):
             timeout (int | float | None, optional): The total execution timeout (in seconds) for this execution.
             wait_for_receipt (bool, optional): Whether to wait for consensus and return the receipt.
                 If False, the method returns a TransactionResponse immediately after submission.
+            validate_status: (bool, optional):  Whether the query should automatically validate the transaction status.
 
         Returns:
             TransactionReceipt: If wait_for_receipt is True (default)
@@ -379,8 +388,8 @@ class Transaction(_Executable):
         response.transaction_id = self.transaction_id
 
         if wait_for_receipt:
-            return response.get_receipt(client, timeout=timeout)
-
+            return response.get_receipt(client, timeout=timeout, validate_status=validate_status)
+        
         return response
 
     def is_signed_by(self, public_key):

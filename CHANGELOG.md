@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org).
@@ -6,12 +6,32 @@ This changelog is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Src
+- Fix the TransactionGetReceiptQuery to raise ReceiptStatusError for the non-retryable and non success receipt status
+
+
+### Examples
+
+### Tests
+
+
+### Docs
+
+
+### .github
+- fix: prevent CodeRabbit from posting comments on closed issues(#1962)
+
+
+
+## [0.2.2] - 2026-03-17
+
 ### Added
 - Added CodeRabbit review instructions in `.coderabbit.yaml` for account module `src/hiero_sdk_python/account/`.
 - Add support for `include_children` to TransactionRecordQuery ([#1512](https://github.com/hiero-ledger/hiero-sdk-python/issues/1512))
 
 ### Changed
 - Changed pytest version to "pytest>=8.3.4,<10" (#1917)
+- Update protobuf schema version to v0.72.0-rc.2 in `.coderabbit.yaml`
 
 ### Src
 - Updated `generated_proto.py` file to work with new proto version
