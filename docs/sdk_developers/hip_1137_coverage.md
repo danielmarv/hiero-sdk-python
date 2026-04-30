@@ -1,13 +1,13 @@
-# HIP-1137 Coverage in hiero-sdk-python
+# Registered Node Registry Coverage in hiero-sdk-python
 
-This document maps HIP-1137 concepts to current SDK implementation status.
+This document maps registered-node registry concepts to current SDK implementation status.
 
 ## Status Summary
 
-The SDK implements the HIP-1137 surface that is present in the current HAPI
-protobuf snapshot used by this repository. The remaining HIP gap is
+The SDK implements the registered-node registry surface that is present in the current HAPI
+protobuf snapshot used by this repository. The remaining proposal gap is
 `nodeAccountId` on registered-node create, update, and read models. The linked
-HIP includes that field, but the local `.protos` inputs and generated Python
+proposal includes that field, but the local `.protos` inputs and generated Python
 protobufs do not currently define it:
 
 - [.protos/services/registered_node_create.proto](../../.protos/services/registered_node_create.proto)
@@ -35,7 +35,7 @@ then regenerate with `uv run python generate_proto.py`.
 - Registered-node `adminKey` accepts and round-trips generic SDK `Key` values,
   including `KeyList` and threshold keys. Empty `KeyList` admin keys are
   rejected.
-- Registered-node descriptions are validated against the HIP/HAPI 100 UTF-8
+- Registered-node descriptions are validated against the HAPI 100 UTF-8
   byte limit.
 - `TransactionReceipt.registered_node_id`:
   [src/hiero_sdk_python/transaction/transaction_receipt.py](../../src/hiero_sdk_python/transaction/transaction_receipt.py)
@@ -76,9 +76,9 @@ then regenerate with `uv run python generate_proto.py`.
 - Add `nodeAccountId` support to `RegisteredNodeCreateTransaction`,
   `RegisteredNodeUpdateTransaction`, and `RegisteredNode` after the upstream
   HAPI protobufs define that field.
-- Expand the skipped registered-node lifecycle integration test into the full
-  HIP test matrix when a network with HIP-1137 transaction support is available
-  in CI.
+- Expand the registered-node lifecycle integration test into the full
+  registered-node registry test matrix when a network with transaction support
+  is available in CI.
 
 ## Example
 

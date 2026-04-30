@@ -99,7 +99,7 @@ class RegisteredNodeUpdateTransaction(Transaction):
             raise ValueError("admin_key threshold key must not contain an empty KeyList.")
 
     def _validate_description(self, description: str | None) -> None:
-        """Validate HIP-1137 registered-node description length."""
+        """Validate registered-node description length."""
         if description is not None and len(description.encode("utf-8")) > self.MAX_DESCRIPTION_BYTES:
             raise ValueError("description must not exceed 100 UTF-8 bytes.")
 

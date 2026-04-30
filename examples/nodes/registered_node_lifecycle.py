@@ -1,5 +1,5 @@
 """
-Demonstrates a HIP-1137 registered-node lifecycle.
+    Demonstrates a registered-node registry lifecycle.
 
 This example shows:
 1. Create a registered node with one or more service endpoints.
@@ -9,9 +9,9 @@ This example shows:
 5. Delete the registered node.
 
 Notes:
-- This flow needs network support for HIP-1137 features.
+- This flow needs network support for registered-node registry features.
 - `nodeAccountId` is not shown because the current generated HAPI protobufs do
-  not yet define that HIP field for registered nodes.
+  not yet define that field for registered nodes.
 """
 
 from __future__ import annotations
@@ -150,7 +150,7 @@ def registered_node_lifecycle() -> None:
 
     create_receipt = _execute_or_skip(
         lambda: create_tx.execute(client),
-        "Skipping example: network does not support HIP-1137 registered-node RPC methods yet.",
+        "Skipping example: network does not support registered-node RPC methods yet.",
     )
     if create_receipt is None:
         return

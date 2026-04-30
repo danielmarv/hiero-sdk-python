@@ -55,13 +55,26 @@ class IntegrationTestEnv:
         operator_key = os.getenv("OPERATOR_KEY")
         if operator_id and operator_key:
             self.operator_id = AccountId.from_string(operator_id)
-            self.operator_key = PrivateKey.from_string(operator_key)
+            self.operator_key = self._parse_operator_key(operator_key)
             self.client.set_operator(self.operator_id, self.operator_key)
         else:
             raise ValueError("OPERATOR_ID and OPERATOR_KEY must be set for integration tests")
 
         self.client.logger.set_level(LogLevel.ERROR)
         self.public_operator_key = self.operator_key.public_key()
+
+    def _parse_operator_key(self, operator_key: str) -> PrivateKey:
+        """Parse OPERATOR_KEY, honoring OPERATOR_KEY_TYPE when provided."""
+        key_type = os.getenv("OPERATOR_KEY_TYPE", "").strip().lower()
+        if key_type in {"ed25519", "ed"}:
+            return PrivateKey.from_string_ed25519(operator_key)
+        if key_type in {"ecdsa", "secp256k1"}:
+            return PrivateKey.from_string_ecdsa(operator_key)
+        if key_type == "der":
+            return PrivateKey.from_string_der(operator_key)
+        if key_type:
+            raise ValueError("OPERATOR_KEY_TYPE must be one of: ed25519, ecdsa, der")
+        return PrivateKey.from_string(operator_key)
 
     def close(self):
         self.client.close()

@@ -176,7 +176,7 @@ def test_from_bytes_restores_key_list_admin_key(mock_client):
 
 
 def test_build_transaction_body_rejects_empty_key_list_admin_key(mock_account_ids):
-    """HIP-1137 does not allow an empty KeyList admin key."""
+    """Registered-node update does not allow an empty KeyList admin key."""
     operator_id, _, node_account_id, _, _ = mock_account_ids
     transaction = RegisteredNodeUpdateTransaction().set_registered_node_id(7).set_admin_key(KeyList())
     transaction.operator_account_id = operator_id

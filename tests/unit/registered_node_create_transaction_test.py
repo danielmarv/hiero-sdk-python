@@ -193,7 +193,7 @@ def test_build_transaction_body_accepts_key_list_admin_key(mock_client, service_
 
 
 def test_build_transaction_body_rejects_empty_key_list_admin_key(mock_account_ids, service_endpoint):
-    """HIP-1137 does not allow an empty KeyList admin key."""
+    """Registered-node create does not allow an empty KeyList admin key."""
     operator_id, _, node_account_id, _, _ = mock_account_ids
     transaction = RegisteredNodeCreateTransaction().set_admin_key(KeyList()).add_service_endpoint(service_endpoint)
     transaction.operator_account_id = operator_id

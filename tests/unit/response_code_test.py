@@ -10,8 +10,8 @@ from hiero_sdk_python.response_code import ResponseCode
 pytestmark = pytest.mark.unit
 
 
-def test_hip_1137_response_codes_are_named_members():
-    """HIP-1137 response codes should be first-class enum members."""
+def test_registered_node_response_codes_are_named_members():
+    """Registered-node response codes should be first-class enum members."""
     assert ResponseCode(529) is ResponseCode.INVALID_REGISTERED_NODE_ID
     assert ResponseCode(530) is ResponseCode.INVALID_REGISTERED_ENDPOINT
     assert ResponseCode(531) is ResponseCode.REGISTERED_ENDPOINTS_EXCEEDED_LIMIT
