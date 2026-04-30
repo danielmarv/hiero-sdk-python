@@ -8,6 +8,8 @@ import atheris
 
 
 with atheris.instrument_imports():
+    from eth_abi.exceptions import EncodingTypeError, ValueOutOfBounds
+
     from hiero_sdk_python import ContractFunctionParameters
 
 
@@ -42,7 +44,11 @@ def TestOneInput(data: bytes) -> None:
     else:
         count = fdp.ConsumeIntInRange(0, 8)
         params.add_bytes32_array([fdp.ConsumeBytes(32) for _ in range(count)])
-    params.to_bytes()
+    try:
+        params.to_bytes()
+    except (TypeError, ValueError, EncodingTypeError, ValueOutOfBounds):
+        # Malformed fuzz input can trigger expected validation/ABI encoding failures.
+        pass
 
 
 atheris.Setup(sys.argv, TestOneInput)
