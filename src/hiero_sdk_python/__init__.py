@@ -15,9 +15,13 @@ from .address_book.endpoint import Endpoint
 from .address_book.general_service_endpoint import GeneralServiceEndpoint
 from .address_book.mirror_node_service_endpoint import MirrorNodeServiceEndpoint
 from .address_book.node_address import NodeAddress
+from .address_book.registered_node import RegisteredNode
+from .address_book.registered_node_address_book import RegisteredNodeAddressBook
 from .address_book.registered_node_address_book_query import (
     RegisteredNodeAddressBookQuery,
 )
+from .address_book.registered_service_endpoint import RegisteredServiceEndpoint
+from .address_book.rpc_relay_service_endpoint import RpcRelayServiceEndpoint
 
 # Client and Network
 from .client.client import Client
@@ -250,7 +254,11 @@ __all__ = [
     "GeneralServiceEndpoint",
     "MirrorNodeServiceEndpoint",
     "NodeAddress",
+    "RegisteredNode",
+    "RegisteredNodeAddressBook",
     "RegisteredNodeAddressBookQuery",
+    "RegisteredServiceEndpoint",
+    "RpcRelayServiceEndpoint",
     # Logger
     "Logger",
     "LogLevel",

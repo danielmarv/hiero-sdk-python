@@ -10,6 +10,7 @@ from hiero_sdk_python.address_book.block_node_api import BlockNodeApi
 from hiero_sdk_python.address_book.block_node_service_endpoint import (
     BlockNodeServiceEndpoint,
 )
+from hiero_sdk_python.crypto.key_list import KeyList
 from hiero_sdk_python.crypto.private_key import PrivateKey
 from hiero_sdk_python.hapi.services.schedulable_transaction_body_pb2 import (
     SchedulableTransactionBody,
@@ -156,6 +157,44 @@ def test_build_transaction_body_accepts_private_key_admin_key(mock_account_ids):
     transaction_body = transaction.build_transaction_body()
 
     assert transaction_body.registeredNodeUpdate.admin_key == admin_key.public_key()._to_proto()
+
+
+def test_from_bytes_restores_key_list_admin_key(mock_client):
+    """Complex admin keys should round-trip as generic Key values."""
+    first_key = PrivateKey.generate_ed25519().public_key()
+    second_key = PrivateKey.generate_ed25519().public_key()
+    admin_key = KeyList([first_key, second_key], threshold=1)
+    transaction = RegisteredNodeUpdateTransaction().set_registered_node_id(7).set_admin_key(admin_key)
+    transaction.freeze_with(mock_client)
+
+    restored = Transaction.from_bytes(transaction.to_bytes())
+
+    assert isinstance(restored, RegisteredNodeUpdateTransaction)
+    assert isinstance(restored.admin_key, KeyList)
+    assert len(restored.admin_key.keys) == 2
+    assert restored.admin_key.threshold == 1
+
+
+def test_build_transaction_body_rejects_empty_key_list_admin_key(mock_account_ids):
+    """HIP-1137 does not allow an empty KeyList admin key."""
+    operator_id, _, node_account_id, _, _ = mock_account_ids
+    transaction = RegisteredNodeUpdateTransaction().set_registered_node_id(7).set_admin_key(KeyList())
+    transaction.operator_account_id = operator_id
+    transaction.node_account_id = node_account_id
+
+    with pytest.raises(ValueError, match="admin_key must not be an empty KeyList"):
+        transaction.build_transaction_body()
+
+
+def test_build_transaction_body_rejects_description_over_100_bytes(mock_account_ids):
+    """Registered node descriptions are capped at 100 UTF-8 bytes."""
+    operator_id, _, node_account_id, _, _ = mock_account_ids
+    transaction = RegisteredNodeUpdateTransaction().set_registered_node_id(7).set_description("x" * 101)
+    transaction.operator_account_id = operator_id
+    transaction.node_account_id = node_account_id
+
+    with pytest.raises(ValueError, match="description must not exceed 100 UTF-8 bytes"):
+        transaction.build_transaction_body()
 
 
 def test_get_method():

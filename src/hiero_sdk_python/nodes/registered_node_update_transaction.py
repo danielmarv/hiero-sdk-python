@@ -10,7 +10,6 @@ from hiero_sdk_python.address_book.registered_service_endpoint import (
     RegisteredServiceEndpoint,
 )
 from hiero_sdk_python.channels import _Channel
-from hiero_sdk_python.crypto.public_key import PublicKey
 from hiero_sdk_python.executable import _Method
 from hiero_sdk_python.hapi.services.registered_node_update_pb2 import (
     RegisteredNodeUpdateTransactionBody,
@@ -35,6 +34,9 @@ class RegisteredNodeUpdateParams:
 
 class RegisteredNodeUpdateTransaction(Transaction):
     """Update an existing registered node."""
+
+    MAX_DESCRIPTION_BYTES = 100
+    MAX_SERVICE_ENDPOINTS = 50
 
     def __init__(self, registered_node_update_params: RegisteredNodeUpdateParams | None = None) -> None:
         """Initialize a registered node update transaction."""
@@ -81,8 +83,25 @@ class RegisteredNodeUpdateTransaction(Transaction):
         """Validate the transaction fields."""
         if self.registered_node_id is None:
             raise ValueError("Missing required RegisteredNodeID")
-        if len(self.service_endpoints) > 50:
+        if self.admin_key is not None:
+            self._validate_admin_key(self.admin_key)
+        self._validate_description(self.description)
+        if len(self.service_endpoints) > self.MAX_SERVICE_ENDPOINTS:
             raise ValueError("A maximum of 50 service endpoints is allowed.")
+
+    def _validate_admin_key(self, admin_key: Key) -> None:
+        """Validate the registered-node admin key shape."""
+        admin_key_proto = key_to_proto(admin_key)
+        key_type = admin_key_proto.WhichOneof("key") if admin_key_proto is not None else None
+        if key_type == "keyList" and len(admin_key_proto.keyList.keys) == 0:
+            raise ValueError("admin_key must not be an empty KeyList.")
+        if key_type == "thresholdKey" and len(admin_key_proto.thresholdKey.keys.keys) == 0:
+            raise ValueError("admin_key threshold key must not contain an empty KeyList.")
+
+    def _validate_description(self, description: str | None) -> None:
+        """Validate HIP-1137 registered-node description length."""
+        if description is not None and len(description.encode("utf-8")) > self.MAX_DESCRIPTION_BYTES:
+            raise ValueError("description must not exceed 100 UTF-8 bytes.")
 
     def _build_proto_body(self) -> RegisteredNodeUpdateTransactionBody:
         """Build the protobuf body for the registered node update transaction."""
@@ -123,7 +142,7 @@ class RegisteredNodeUpdateTransaction(Transaction):
             update_body = transaction_body.registeredNodeUpdate
             transaction.registered_node_id = update_body.registered_node_id
             transaction.admin_key = (
-                PublicKey._from_proto(update_body.admin_key) if update_body.HasField("admin_key") else None
+                Key.from_proto_key(update_body.admin_key) if update_body.HasField("admin_key") else None
             )
             transaction.description = update_body.description.value if update_body.HasField("description") else None
             transaction.service_endpoints = [

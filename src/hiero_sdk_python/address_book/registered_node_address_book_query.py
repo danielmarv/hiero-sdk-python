@@ -26,6 +26,7 @@ from hiero_sdk_python.address_book.rpc_relay_service_endpoint import (
     RpcRelayServiceEndpoint,
 )
 from hiero_sdk_python.client.client import Client
+from hiero_sdk_python.crypto.key import Key
 from hiero_sdk_python.crypto.public_key import PublicKey
 from hiero_sdk_python.hapi.services import basic_types_pb2
 from hiero_sdk_python.utils.entity_id_helper import perform_query_to_mirror_node
@@ -177,8 +178,8 @@ class RegisteredNodeAddressBookQuery:
             service_endpoints=tuple(self._parse_service_endpoint(endpoint) for endpoint in raw_endpoints),
         )
 
-    def _parse_admin_key(self, raw_admin_key: dict | None) -> PublicKey | None:
-        """Parse mirror admin_key payload into a PublicKey when present."""
+    def _parse_admin_key(self, raw_admin_key: dict | None) -> Key | None:
+        """Parse mirror admin_key payload into an SDK Key when present."""
         if not isinstance(raw_admin_key, dict):
             return None
 
@@ -197,7 +198,7 @@ class RegisteredNodeAddressBookQuery:
         if key_type == "PROTOBUFENCODED":
             key_proto = basic_types_pb2.Key()
             key_proto.ParseFromString(bytes.fromhex(key_hex.removeprefix("0x")))
-            return PublicKey._from_proto(key_proto)
+            return Key.from_proto_key(key_proto)
 
         return PublicKey.from_string(key_hex)
 

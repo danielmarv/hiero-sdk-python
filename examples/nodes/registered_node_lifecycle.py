@@ -10,7 +10,8 @@ This example shows:
 
 Notes:
 - This flow needs network support for HIP-1137 features.
-- GeneralServiceEndpoint is deferred until protobuf support is available.
+- `nodeAccountId` is not shown because the current generated HAPI protobufs do
+  not yet define that HIP field for registered nodes.
 """
 
 from __future__ import annotations
@@ -27,15 +28,13 @@ from hiero_sdk_python import (
     BlockNodeApi,
     BlockNodeServiceEndpoint,
     Client,
+    GeneralServiceEndpoint,
     NodeUpdateTransaction,
     PrivateKey,
     RegisteredNodeCreateTransaction,
     RegisteredNodeDeleteTransaction,
     RegisteredNodeUpdateTransaction,
     ResponseCode,
-)
-from hiero_sdk_python.address_book.general_service_endpoint import (
-    GeneralServiceEndpoint,
 )
 
 

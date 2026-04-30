@@ -16,6 +16,8 @@ from hiero_sdk_python.address_book.mirror_node_service_endpoint import (
 from hiero_sdk_python.address_book.registered_node_address_book_query import (
     RegisteredNodeAddressBookQuery,
 )
+from hiero_sdk_python.crypto.key_list import KeyList
+from hiero_sdk_python.crypto.private_key import PrivateKey
 from hiero_sdk_python.hapi.services import basic_types_pb2
 
 
@@ -122,6 +124,40 @@ def test_execute_maps_block_node_endpoint_api(client_mock):
     endpoint = address_book[0].service_endpoints[0]
     assert isinstance(endpoint, BlockNodeServiceEndpoint)
     assert endpoint.endpoint_api is BlockNodeApi.STATUS
+
+
+def test_execute_maps_protobuf_encoded_key_list_admin_key(client_mock):
+    """ProtobufEncoded mirror admin keys should preserve complex Key values."""
+    query = RegisteredNodeAddressBookQuery()
+    first_key = PrivateKey.generate_ed25519().public_key()
+    second_key = PrivateKey.generate_ed25519().public_key()
+    admin_key_hex = KeyList([first_key, second_key], threshold=1).to_proto_key().SerializeToString().hex()
+    response = {
+        "registered_nodes": [
+            {
+                "registered_node_id": 9,
+                "admin_key": {"_type": "ProtobufEncoded", "key": admin_key_hex},
+                "service_endpoints": [
+                    {
+                        "domain_name": "mirror.example.com",
+                        "port": 443,
+                        "mirror_node": {},
+                    }
+                ],
+            }
+        ],
+        "links": {"next": None},
+    }
+
+    with patch(
+        "hiero_sdk_python.address_book.registered_node_address_book_query.perform_query_to_mirror_node",
+        return_value=response,
+    ):
+        address_book = query.execute(client_mock)
+
+    assert isinstance(address_book[0].admin_key, KeyList)
+    assert len(address_book[0].admin_key.keys) == 2
+    assert address_book[0].admin_key.threshold == 1
 
 
 def test_execute_rejects_invalid_registered_nodes_payload(client_mock):
