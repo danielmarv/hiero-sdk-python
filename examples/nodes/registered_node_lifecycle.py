@@ -11,7 +11,6 @@ This example shows:
 Notes:
 - This flow needs network support for HIP-1137 features.
 - GeneralServiceEndpoint is deferred until protobuf support is available.
-- RegisteredNodeAddressBookQuery remains unavailable until mirror-node APIs are defined.
 """
 
 from __future__ import annotations

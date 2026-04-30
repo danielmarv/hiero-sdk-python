@@ -27,9 +27,9 @@ This document maps HIP-1137 concepts to current SDK implementation status.
   - [src/hiero_sdk_python/address_book/registered_node.py](../../src/hiero_sdk_python/address_book/registered_node.py)
   - [src/hiero_sdk_python/address_book/registered_node_address_book.py](../../src/hiero_sdk_python/address_book/registered_node_address_book.py)
 
-## Deferred Concept (Intentional)
+## Mirror Query Support
 
-- `RegisteredNodeAddressBookQuery` execution is intentionally deferred until mirror-node API support is defined, matching HIP guidance:
+- `RegisteredNodeAddressBookQuery` execution is implemented using mirror-node REST APIs (`/api/v1/network/registered-nodes`), including pagination and filter support:
   [src/hiero_sdk_python/address_book/registered_node_address_book_query.py](../../src/hiero_sdk_python/address_book/registered_node_address_book_query.py)
 - End-to-end integration coverage for the registered-node lifecycle remains gated on environment/network support in CI:
   [tests/integration/registered_node_transaction_e2e_test.py](../../tests/integration/registered_node_transaction_e2e_test.py)
