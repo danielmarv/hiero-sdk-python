@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
-from urllib.parse import urlencode, urljoin
+from urllib.parse import ParseResult, urlencode, urljoin, urlparse, urlunparse
 
 from hiero_sdk_python.address_book.block_node_api import BlockNodeApi
 from hiero_sdk_python.address_book.block_node_service_endpoint import (
@@ -108,7 +108,7 @@ class RegisteredNodeAddressBookQuery:
 
     def execute(self, client: Client, timeout: int | float | None = None) -> RegisteredNodeAddressBook:
         """Execute the query using the configured mirror node REST API."""
-        base_url = client.network.get_mirror_rest_url().rstrip("/")
+        base_url = self._normalize_mirror_rest_url(client.network.get_mirror_rest_url()).rstrip("/")
         request_timeout = 10.0 if timeout is None else float(timeout)
 
         next_url = self._build_initial_url(base_url)
@@ -121,6 +121,30 @@ class RegisteredNodeAddressBookQuery:
             next_url = next_link
 
         return RegisteredNodeAddressBook.from_iterable(registered_nodes)
+
+    def _normalize_mirror_rest_url(self, base_url: str) -> str:
+        """Use the REST port for local mirror registered-node APIs."""
+        parsed_url = urlparse(base_url)
+        if parsed_url.hostname not in {"localhost", "127.0.0.1"} or parsed_url.port != 5551:
+            return base_url
+
+        netloc = self._replace_port(parsed_url, 8084)
+        return urlunparse(parsed_url._replace(netloc=netloc))
+
+    def _replace_port(self, parsed_url: ParseResult, port: int) -> str:
+        """Return a netloc with the supplied port and existing user info."""
+        host = parsed_url.hostname or ""
+        if ":" in host and not host.startswith("["):
+            host = f"[{host}]"
+
+        user_info = ""
+        if parsed_url.username is not None:
+            user_info = parsed_url.username
+            if parsed_url.password is not None:
+                user_info = f"{user_info}:{parsed_url.password}"
+            user_info = f"{user_info}@"
+
+        return f"{user_info}{host}:{port}"
 
     def _build_initial_url(self, base_url: str) -> str:
         """Build the first request URL based on current query settings."""

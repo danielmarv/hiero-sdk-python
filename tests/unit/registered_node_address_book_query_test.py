@@ -101,6 +101,24 @@ def test_execute_collects_pages_and_maps_models(client_mock):
     ]
 
 
+def test_execute_uses_java_rest_port_for_local_registered_nodes_endpoint(client_mock):
+    """Local registered-node mirror requests should use the Java REST API port."""
+    client_mock.network.get_mirror_rest_url.return_value = "http://localhost:5551/api/v1"
+    query = RegisteredNodeAddressBookQuery().set_limit(25).add_registered_node_id_filter("gte", 0)
+    response = {"registered_nodes": [], "links": {"next": None}}
+
+    with patch(
+        "hiero_sdk_python.address_book.registered_node_address_book_query.perform_query_to_mirror_node",
+        return_value=response,
+    ) as mock_query:
+        query.execute(client_mock)
+
+    mock_query.assert_called_once_with(
+        "http://localhost:8084/api/v1/network/registered-nodes?order=asc&limit=25&registerednode.id=gte%3A0",
+        timeout=10.0,
+    )
+
+
 def test_execute_maps_block_node_endpoint_api(client_mock):
     """Block endpoint API values should map to BlockNodeApi members."""
     query = RegisteredNodeAddressBookQuery()
