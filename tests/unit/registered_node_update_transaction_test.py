@@ -10,6 +10,9 @@ from hiero_sdk_python.address_book.block_node_api import BlockNodeApi
 from hiero_sdk_python.address_book.block_node_service_endpoint import (
     BlockNodeServiceEndpoint,
 )
+from hiero_sdk_python.address_book.mirror_node_service_endpoint import (
+    MirrorNodeServiceEndpoint,
+)
 from hiero_sdk_python.crypto.key_list import KeyList
 from hiero_sdk_python.crypto.private_key import PrivateKey
 from hiero_sdk_python.hapi.services.schedulable_transaction_body_pb2 import (
@@ -79,6 +82,40 @@ def test_build_transaction_body(mock_account_ids, registered_node_update_params)
     assert registered_node_update.description.value == registered_node_update_params.description
     assert len(registered_node_update.service_endpoint) == 1
     assert registered_node_update.service_endpoint[0] == registered_node_update_params.service_endpoints[0]._to_proto()
+
+
+def test_build_transaction_body_replaces_description_and_service_endpoints(mock_account_ids):
+    """Update transactions should serialize replacement description and endpoints."""
+    operator_id, _, node_account_id, _, _ = mock_account_ids
+    service_endpoints = [
+        BlockNodeServiceEndpoint(
+            domain_name="block.example.com",
+            port=443,
+            endpoint_apis=[BlockNodeApi.PUBLISH, BlockNodeApi.STATUS],
+        ),
+        MirrorNodeServiceEndpoint(domain_name="mirror.example.com", port=443),
+    ]
+    transaction = (
+        RegisteredNodeUpdateTransaction()
+        .set_registered_node_id(7)
+        .set_description("replacement description")
+        .set_service_endpoints(service_endpoints)
+    )
+    transaction.operator_account_id = operator_id
+    transaction.node_account_id = node_account_id
+
+    transaction_body = transaction.build_transaction_body()
+    update_body = transaction_body.registeredNodeUpdate
+
+    assert update_body.description.value == "replacement description"
+    assert [endpoint.WhichOneof("endpoint_type") for endpoint in update_body.service_endpoint] == [
+        "block_node",
+        "mirror_node",
+    ]
+    assert list(update_body.service_endpoint[0].block_node.endpoint_api) == [
+        BlockNodeApi.PUBLISH,
+        BlockNodeApi.STATUS,
+    ]
 
 
 def test_build_scheduled_body(registered_node_update_params):

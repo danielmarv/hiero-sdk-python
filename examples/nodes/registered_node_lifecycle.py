@@ -10,8 +10,6 @@ This example shows:
 
 Notes:
 - This flow needs network support for registered-node registry features.
-- `nodeAccountId` is not shown because the current generated HAPI protobufs do
-  not yet define that field for registered nodes.
 """
 
 from __future__ import annotations
@@ -136,7 +134,7 @@ def registered_node_lifecycle() -> None:
         domain_name="block.example.com",
         port=443,
         requires_tls=True,
-        endpoint_api=BlockNodeApi.SUBSCRIBE_STREAM,
+        endpoint_apis=[BlockNodeApi.SUBSCRIBE_STREAM, BlockNodeApi.STATUS],
     )
 
     create_tx = (

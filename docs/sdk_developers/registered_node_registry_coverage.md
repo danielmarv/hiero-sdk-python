@@ -4,19 +4,11 @@ This document maps registered-node registry concepts to current SDK implementati
 
 ## Status Summary
 
-The SDK implements the registered-node registry surface that is present in the current HAPI
-protobuf snapshot used by this repository. The remaining proposal gap is
-`nodeAccountId` on registered-node create, update, and read models. The linked
-proposal includes that field, but the local `.protos` inputs and generated Python
-protobufs do not currently define it:
-
-- [.protos/services/registered_node_create.proto](../../.protos/services/registered_node_create.proto)
-- [.protos/services/registered_node_update.proto](../../.protos/services/registered_node_update.proto)
-- [.protos/services/state/addressbook/registered_node.proto](../../.protos/services/state/addressbook/registered_node.proto)
-
-Do not add SDK serialization for `nodeAccountId` with guessed protobuf field
-numbers. Complete that field only after the upstream HAPI protobufs define it,
-then regenerate with `uv run python generate_proto.py`.
+The SDK implements the core registered-node registry surface that is present in
+the current HAPI protobuf snapshot used by this repository. Remaining work is
+primarily live-network proof coverage for the full create/update/delete and
+consensus-node association matrix; those tests require an operator account
+authorized to modify registered-node and consensus-node address book state.
 
 ## Covered Concepts
 
@@ -24,7 +16,7 @@ then regenerate with `uv run python generate_proto.py`.
 - `RegisteredServiceEndpoint` base type with IP/FQDN one-of validation:
   [src/hiero_sdk_python/address_book/registered_service_endpoint.py](../../src/hiero_sdk_python/address_book/registered_service_endpoint.py)
 - Endpoint subtypes:
-  - Block: [src/hiero_sdk_python/address_book/block_node_service_endpoint.py](../../src/hiero_sdk_python/address_book/block_node_service_endpoint.py)
+  - Block with one or more endpoint APIs: [src/hiero_sdk_python/address_book/block_node_service_endpoint.py](../../src/hiero_sdk_python/address_book/block_node_service_endpoint.py)
   - Mirror: [src/hiero_sdk_python/address_book/mirror_node_service_endpoint.py](../../src/hiero_sdk_python/address_book/mirror_node_service_endpoint.py)
   - RPC relay: [src/hiero_sdk_python/address_book/rpc_relay_service_endpoint.py](../../src/hiero_sdk_python/address_book/rpc_relay_service_endpoint.py)
   - General service: [src/hiero_sdk_python/address_book/general_service_endpoint.py](../../src/hiero_sdk_python/address_book/general_service_endpoint.py)
@@ -52,9 +44,11 @@ then regenerate with `uv run python generate_proto.py`.
 
 - `RegisteredNodeAddressBookQuery` execution is implemented using mirror-node REST APIs (`/api/v1/network/registered-nodes`), including pagination and filter support:
   [src/hiero_sdk_python/address_book/registered_node_address_book_query.py](../../src/hiero_sdk_python/address_book/registered_node_address_book_query.py)
-- End-to-end integration coverage for the registered-node lifecycle remains gated on environment/network support in CI:
+- End-to-end integration coverage for the registered-node lifecycle uses the
+  standard integration environment and skips only when the live network rejects
+  the configured operator with `UNAUTHORIZED`:
   [tests/integration/registered_node_transaction_e2e_test.py](../../tests/integration/registered_node_transaction_e2e_test.py)
-- Live mirror query coverage is opt-in with `ENABLE_LIVE_MIRROR_TESTS=true`:
+- Live mirror query coverage uses the standard integration environment:
   [tests/integration/registered_node_address_book_query_e2e_test.py](../../tests/integration/registered_node_address_book_query_e2e_test.py)
 
 ## Tests
@@ -73,12 +67,11 @@ then regenerate with `uv run python generate_proto.py`.
 
 ## Remaining Work
 
-- Add `nodeAccountId` support to `RegisteredNodeCreateTransaction`,
-  `RegisteredNodeUpdateTransaction`, and `RegisteredNode` after the upstream
-  HAPI protobufs define that field.
 - Expand the registered-node lifecycle integration test into the full
   registered-node registry test matrix when a network with transaction support
   is available in CI.
+- Add TCK coverage for registered-node create, update, delete, address-book
+  query, and consensus-node association behavior.
 
 ## Example
 

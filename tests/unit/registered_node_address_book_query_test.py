@@ -10,11 +10,17 @@ from hiero_sdk_python.address_book.block_node_api import BlockNodeApi
 from hiero_sdk_python.address_book.block_node_service_endpoint import (
     BlockNodeServiceEndpoint,
 )
+from hiero_sdk_python.address_book.general_service_endpoint import (
+    GeneralServiceEndpoint,
+)
 from hiero_sdk_python.address_book.mirror_node_service_endpoint import (
     MirrorNodeServiceEndpoint,
 )
 from hiero_sdk_python.address_book.registered_node_address_book_query import (
     RegisteredNodeAddressBookQuery,
+)
+from hiero_sdk_python.address_book.rpc_relay_service_endpoint import (
+    RpcRelayServiceEndpoint,
 )
 from hiero_sdk_python.crypto.key_list import KeyList
 from hiero_sdk_python.crypto.private_key import PrivateKey
@@ -124,6 +130,46 @@ def test_execute_maps_block_node_endpoint_api(client_mock):
     endpoint = address_book[0].service_endpoints[0]
     assert isinstance(endpoint, BlockNodeServiceEndpoint)
     assert endpoint.endpoint_api is BlockNodeApi.STATUS
+    assert endpoint.endpoint_apis == [BlockNodeApi.STATUS, BlockNodeApi.PUBLISH]
+
+
+def test_execute_maps_rpc_relay_and_general_service_endpoints(client_mock):
+    """Mirror payloads should map RPC relay and general service endpoints."""
+    query = RegisteredNodeAddressBookQuery()
+    response = {
+        "registered_nodes": [
+            {
+                "registered_node_id": 9,
+                "service_endpoints": [
+                    {
+                        "domain_name": "relay.example.com",
+                        "port": 7545,
+                        "type": "RPC_RELAY",
+                        "rpc_relay": {},
+                    },
+                    {
+                        "domain_name": "general.example.com",
+                        "port": 443,
+                        "type": "GENERAL_SERVICE",
+                        "general_service": {"description": "general service"},
+                    },
+                ],
+            }
+        ],
+        "links": {"next": None},
+    }
+
+    with patch(
+        "hiero_sdk_python.address_book.registered_node_address_book_query.perform_query_to_mirror_node",
+        return_value=response,
+    ):
+        address_book = query.execute(client_mock)
+
+    relay_endpoint = address_book[0].service_endpoints[0]
+    general_endpoint = address_book[0].service_endpoints[1]
+    assert isinstance(relay_endpoint, RpcRelayServiceEndpoint)
+    assert isinstance(general_endpoint, GeneralServiceEndpoint)
+    assert general_endpoint.description == "general service"
 
 
 def test_execute_maps_protobuf_encoded_key_list_admin_key(client_mock):

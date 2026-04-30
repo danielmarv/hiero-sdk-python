@@ -10,8 +10,17 @@ from hiero_sdk_python.address_book.block_node_api import BlockNodeApi
 from hiero_sdk_python.address_book.block_node_service_endpoint import (
     BlockNodeServiceEndpoint,
 )
+from hiero_sdk_python.address_book.general_service_endpoint import (
+    GeneralServiceEndpoint,
+)
+from hiero_sdk_python.address_book.mirror_node_service_endpoint import (
+    MirrorNodeServiceEndpoint,
+)
 from hiero_sdk_python.address_book.registered_service_endpoint import (
     RegisteredServiceEndpoint,
+)
+from hiero_sdk_python.address_book.rpc_relay_service_endpoint import (
+    RpcRelayServiceEndpoint,
 )
 from hiero_sdk_python.crypto.key_list import KeyList
 from hiero_sdk_python.crypto.private_key import PrivateKey
@@ -82,6 +91,41 @@ def test_build_transaction_body(mock_account_ids, registered_node_create_params)
     assert registered_node_create.description == registered_node_create_params.description
     assert len(registered_node_create.service_endpoint) == 1
     assert registered_node_create.service_endpoint[0] == registered_node_create_params.service_endpoints[0]._to_proto()
+
+
+def test_build_transaction_body_with_mixed_service_endpoints(mock_account_ids):
+    """Create transactions should serialize all supported endpoint subtypes."""
+    operator_id, _, node_account_id, _, _ = mock_account_ids
+    service_endpoints = [
+        BlockNodeServiceEndpoint(
+            domain_name="block.example.com",
+            port=443,
+            endpoint_apis=[BlockNodeApi.SUBSCRIBE_STREAM, BlockNodeApi.STATUS],
+        ),
+        MirrorNodeServiceEndpoint(domain_name="mirror.example.com", port=443),
+        RpcRelayServiceEndpoint(domain_name="relay.example.com", port=7545),
+        GeneralServiceEndpoint(domain_name="general.example.com", port=443, description="general service"),
+    ]
+    transaction = (
+        RegisteredNodeCreateTransaction()
+        .set_admin_key(PrivateKey.generate_ed25519().public_key())
+        .set_description("mixed service node")
+        .set_service_endpoints(service_endpoints)
+    )
+    transaction.operator_account_id = operator_id
+    transaction.node_account_id = node_account_id
+
+    transaction_body = transaction.build_transaction_body()
+    endpoint_types = [
+        endpoint.WhichOneof("endpoint_type") for endpoint in transaction_body.registeredNodeCreate.service_endpoint
+    ]
+
+    assert endpoint_types == ["block_node", "mirror_node", "rpc_relay", "general_service"]
+    assert list(transaction_body.registeredNodeCreate.service_endpoint[0].block_node.endpoint_api) == [
+        BlockNodeApi.SUBSCRIBE_STREAM,
+        BlockNodeApi.STATUS,
+    ]
+    assert transaction_body.registeredNodeCreate.service_endpoint[3].general_service.description == "general service"
 
 
 def test_build_scheduled_body(registered_node_create_params):

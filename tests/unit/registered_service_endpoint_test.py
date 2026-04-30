@@ -45,14 +45,47 @@ def test_block_node_service_endpoint_roundtrip():
         domain_name="block.example.com",
         port=443,
         requires_tls=True,
-        endpoint_api=BlockNodeApi.STATE_PROOF,
+        endpoint_apis=[BlockNodeApi.SUBSCRIBE_STREAM, BlockNodeApi.STATUS],
     )
 
     proto = endpoint._to_proto()
     roundtrip = RegisteredServiceEndpoint._from_proto(proto)
 
+    assert list(proto.block_node.endpoint_api) == [BlockNodeApi.SUBSCRIBE_STREAM, BlockNodeApi.STATUS]
     assert isinstance(roundtrip, BlockNodeServiceEndpoint)
     assert roundtrip == endpoint
+    assert roundtrip.endpoint_apis == [BlockNodeApi.SUBSCRIBE_STREAM, BlockNodeApi.STATUS]
+
+
+def test_block_node_service_endpoint_supports_endpoint_api_alias():
+    """The singular endpoint_api argument should remain a compatibility alias."""
+    endpoint = BlockNodeServiceEndpoint(
+        domain_name="block.example.com",
+        port=443,
+        requires_tls=True,
+        endpoint_api=BlockNodeApi.STATE_PROOF,
+    )
+
+    assert endpoint.endpoint_api is BlockNodeApi.STATE_PROOF
+    assert endpoint.endpoint_apis == [BlockNodeApi.STATE_PROOF]
+
+
+def test_block_node_service_endpoint_rejects_conflicting_api_arguments():
+    """Callers should use either endpoint_apis or endpoint_api, not both."""
+    with pytest.raises(ValueError, match="Only one of endpoint_apis or endpoint_api may be set."):
+        BlockNodeServiceEndpoint(
+            domain_name="block.example.com",
+            port=443,
+            endpoint_apis=[BlockNodeApi.STATUS],
+            endpoint_api=BlockNodeApi.PUBLISH,
+        )
+
+    with pytest.raises(ValueError, match="endpoint_apis must contain at least one BlockNodeApi."):
+        BlockNodeServiceEndpoint(
+            domain_name="block.example.com",
+            port=443,
+            endpoint_apis=[],
+        )
 
 
 def test_mirror_node_service_endpoint_roundtrip():

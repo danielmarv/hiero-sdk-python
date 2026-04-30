@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import grpc
 import pytest
 
 from hiero_sdk_python.address_book.block_node_api import BlockNodeApi
@@ -30,17 +31,22 @@ def test_registered_node_create_update_delete_live_network(env):
         domain_name="block.example.com",
         port=443,
         requires_tls=True,
-        endpoint_api=BlockNodeApi.PUBLISH,
+        endpoint_apis=[BlockNodeApi.PUBLISH, BlockNodeApi.STATUS],
     )
 
     registered_node_id: int | None = None
-    create_receipt = (
-        RegisteredNodeCreateTransaction()
-        .set_admin_key(env.operator_key.public_key())
-        .set_description("Python SDK live registered node test")
-        .add_service_endpoint(endpoint)
-        .execute(env.client)
-    )
+    try:
+        create_receipt = (
+            RegisteredNodeCreateTransaction()
+            .set_admin_key(env.operator_key.public_key())
+            .set_description("Python SDK live registered node test")
+            .add_service_endpoint(endpoint)
+            .execute(env.client)
+        )
+    except grpc.RpcError as error:
+        if error.code() == grpc.StatusCode.UNIMPLEMENTED:
+            pytest.skip("Live network does not expose registered-node transaction methods yet.")
+        raise
 
     if create_receipt.status == ResponseCode.UNAUTHORIZED:
         pytest.skip("Live network rejected registered-node create for this operator with UNAUTHORIZED.")

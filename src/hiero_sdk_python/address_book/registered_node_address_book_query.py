@@ -209,7 +209,7 @@ class RegisteredNodeAddressBookQuery:
 
         if endpoint_type == "BLOCK_NODE":
             return BlockNodeServiceEndpoint(
-                endpoint_api=self._parse_block_node_api(raw_endpoint.get("block_node")),
+                endpoint_apis=self._parse_block_node_apis(raw_endpoint.get("block_node")),
                 **common_kwargs,
             )
 
@@ -265,23 +265,26 @@ class RegisteredNodeAddressBookQuery:
 
         raise ValueError("Unable to determine registered service endpoint type.")
 
-    def _parse_block_node_api(self, raw_block_node: dict | None) -> BlockNodeApi:
+    def _parse_block_node_apis(self, raw_block_node: dict | None) -> list[BlockNodeApi]:
         """Parse the block node endpoint API list into SDK enum form."""
         if not isinstance(raw_block_node, dict):
-            return BlockNodeApi.OTHER
+            return [BlockNodeApi.OTHER]
 
         endpoint_apis = raw_block_node.get("endpoint_apis")
         if not isinstance(endpoint_apis, list) or not endpoint_apis:
-            return BlockNodeApi.OTHER
+            return [BlockNodeApi.OTHER]
 
-        first_api = endpoint_apis[0]
-        if not isinstance(first_api, str):
-            return BlockNodeApi.OTHER
+        parsed_apis: list[BlockNodeApi] = []
+        for endpoint_api in endpoint_apis:
+            if not isinstance(endpoint_api, str):
+                continue
 
-        try:
-            return BlockNodeApi[first_api.upper().strip()]
-        except KeyError:
-            return BlockNodeApi.OTHER
+            try:
+                parsed_apis.append(BlockNodeApi[endpoint_api.upper().strip()])
+            except KeyError:
+                parsed_apis.append(BlockNodeApi.OTHER)
+
+        return parsed_apis or [BlockNodeApi.OTHER]
 
     def _optional_string(self, value: object) -> str | None:
         """Return a normalized non-empty string or None."""
