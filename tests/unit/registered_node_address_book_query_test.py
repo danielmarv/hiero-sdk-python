@@ -114,7 +114,7 @@ def test_execute_uses_java_rest_port_for_local_registered_nodes_endpoint(client_
         query.execute(client_mock)
 
     mock_query.assert_called_once_with(
-        "http://localhost:8084/api/v1/network/registered-nodes?order=asc&limit=25&registerednode.id=gte%3A0",
+        "http://localhost:8084/api/v1/network/registered-nodes?registerednode.id=gte%3A0",
         timeout=10.0,
     )
 

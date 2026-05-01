@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import grpc
 import pytest
 
 from hiero_sdk_python.address_book.block_node_api import BlockNodeApi
@@ -21,7 +22,7 @@ from hiero_sdk_python.address_book.rpc_relay_service_endpoint import (
     RpcRelayServiceEndpoint,
 )
 from hiero_sdk_python.crypto.private_key import PrivateKey
-from hiero_sdk_python.exceptions import ReceiptStatusError
+from hiero_sdk_python.exceptions import MaxAttemptsError, ReceiptStatusError
 from hiero_sdk_python.nodes.node_update_transaction import NodeUpdateTransaction
 from hiero_sdk_python.nodes.registered_node_create_transaction import (
     RegisteredNodeCreateTransaction,
@@ -36,6 +37,33 @@ from hiero_sdk_python.response_code import ResponseCode
 
 
 pytestmark = pytest.mark.integration
+
+
+def _skip_if_registered_node_api_unavailable(error: Exception) -> None:
+    """Skip when the network stack does not expose registered-node RPC methods."""
+    if isinstance(error, grpc.RpcError) and error.code() == grpc.StatusCode.UNIMPLEMENTED:
+        pytest.skip("Registered-node RPC methods are unavailable on this network stack.")
+
+    error_text = str(error)
+
+    if "Method not found: proto.AddressBookService/" in error_text:
+        pytest.skip("Registered-node RPC methods are unavailable on this network stack.")
+
+    if (
+        isinstance(error, MaxAttemptsError)
+        and "StatusCode.UNAVAILABLE" in error_text
+        and ("Connection refused" in error_text or "Socket closed" in error_text)
+    ):
+        pytest.skip("Local Solo gRPC endpoint is unavailable on localhost:50211.")
+
+
+def _execute_registered_node_transaction(transaction, env, **kwargs):
+    """Execute a registered-node transaction and skip if RPC method is unavailable."""
+    try:
+        return transaction.execute(env.client, **kwargs)
+    except Exception as error:
+        _skip_if_registered_node_api_unavailable(error)
+        raise
 
 
 def _block_node_endpoint(domain_name: str = "blocks.example.com") -> BlockNodeServiceEndpoint:
@@ -53,15 +81,15 @@ def _create_registered_node(
     service_endpoints: list[RegisteredServiceEndpoint] | None = None,
     description: str = "Python SDK registered node",
 ) -> int:
-    receipt = (
+    transaction = (
         RegisteredNodeCreateTransaction()
         .set_admin_key(admin_key.public_key())
         .set_description(description)
         .set_service_endpoints(service_endpoints or [_block_node_endpoint()])
         .freeze_with(env.client)
         .sign(admin_key)
-        .execute(env.client)
     )
+    receipt = _execute_registered_node_transaction(transaction, env)
 
     assert receipt.status == ResponseCode.SUCCESS, (
         f"Registered node create failed with status: {ResponseCode(receipt.status).name}"
@@ -71,13 +99,13 @@ def _create_registered_node(
 
 
 def _delete_registered_node(env, registered_node_id: int, admin_key: PrivateKey) -> None:
-    receipt = (
+    transaction = (
         RegisteredNodeDeleteTransaction()
         .set_registered_node_id(registered_node_id)
         .freeze_with(env.client)
         .sign(admin_key)
-        .execute(env.client)
     )
+    receipt = _execute_registered_node_transaction(transaction, env)
 
     assert receipt.status == ResponseCode.SUCCESS, (
         f"Registered node delete failed with status: {ResponseCode(receipt.status).name}"
@@ -117,15 +145,15 @@ def test_registered_node_update_endpoints_and_description(env):
     )
 
     try:
-        receipt = (
+        transaction = (
             RegisteredNodeUpdateTransaction()
             .set_registered_node_id(registered_node_id)
             .set_description("Python SDK updated registered node")
             .set_service_endpoints([_block_node_endpoint("updated.blocks.com")])
             .freeze_with(env.client)
             .sign(admin_key)
-            .execute(env.client)
         )
+        receipt = _execute_registered_node_transaction(transaction, env)
 
         assert receipt.status == ResponseCode.SUCCESS, (
             f"Registered node update failed with status: {ResponseCode(receipt.status).name}"
@@ -142,15 +170,15 @@ def test_registered_node_update_can_rotate_admin_key(env):
     current_admin_key = old_admin_key
 
     try:
-        receipt = (
+        transaction = (
             RegisteredNodeUpdateTransaction()
             .set_registered_node_id(registered_node_id)
             .set_admin_key(new_admin_key.public_key())
             .freeze_with(env.client)
             .sign(old_admin_key)
             .sign(new_admin_key)
-            .execute(env.client)
         )
+        receipt = _execute_registered_node_transaction(transaction, env)
 
         assert receipt.status == ResponseCode.SUCCESS, (
             f"Registered node admin key rotation failed with status: {ResponseCode(receipt.status).name}"
@@ -186,13 +214,13 @@ def test_registered_node_delete_fails_when_still_associated(env):
         )
         associated = True
 
-        delete_response = (
+        delete_transaction = (
             RegisteredNodeDeleteTransaction()
             .set_registered_node_id(registered_node_id)
             .freeze_with(env.client)
             .sign(admin_key)
-            .execute(env.client, wait_for_receipt=False)
         )
+        delete_response = _execute_registered_node_transaction(delete_transaction, env, wait_for_receipt=False)
 
         with pytest.raises(ReceiptStatusError) as error:
             delete_response.get_receipt(env.client, validate_status=True)

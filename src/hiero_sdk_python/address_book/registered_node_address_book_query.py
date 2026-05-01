@@ -148,7 +148,16 @@ class RegisteredNodeAddressBookQuery:
 
     def _build_initial_url(self, base_url: str) -> str:
         """Build the first request URL based on current query settings."""
-        params: list[tuple[str, str]] = [("order", self._order)]
+        params: list[tuple[str, str]] = []
+
+        if self._is_local_registered_nodes_endpoint(base_url):
+            params.extend(("registerednode.id", value) for value in self._registered_node_id_filters)
+            query = urlencode(params, doseq=True)
+            if not query:
+                return f"{base_url}{self._REGISTERED_NODES_PATH}"
+            return f"{base_url}{self._REGISTERED_NODES_PATH}?{query}"
+
+        params.append(("order", self._order))
 
         if self._limit is not None:
             params.append(("limit", str(self._limit)))
@@ -163,6 +172,11 @@ class RegisteredNodeAddressBookQuery:
             return f"{base_url}{self._REGISTERED_NODES_PATH}"
 
         return f"{base_url}{self._REGISTERED_NODES_PATH}?{query}"
+
+    def _is_local_registered_nodes_endpoint(self, base_url: str) -> bool:
+        """Return True when querying a local mirror endpoint."""
+        parsed_url = urlparse(base_url)
+        return parsed_url.hostname in {"localhost", "127.0.0.1"} and parsed_url.port == 8084
 
     def _parse_response_page(self, response: dict, base_url: str) -> tuple[list[RegisteredNode], str | None]:
         """Parse a mirror response page and return models plus the next URL."""
