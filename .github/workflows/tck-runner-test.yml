@@ -1,6 +1,12 @@
 name: TCK Runner Test
 
-# Manual/branch harness for exercising the hiero-tck-runner action.
+# Harness for the hiero-tck-runner action.
+#
+# The suite is sharded across jobs rather than run with mocha --parallel: each
+# shard gets its OWN Solo network, so no network carries the whole suite's load.
+# A single network run end-to-end trips the SDK's node-health breaker
+# ("All nodes are unhealthy") and every later test fails for reasons that have
+# nothing to do with SDK compatibility.
 on:
   push:
     branches:
@@ -12,24 +18,26 @@ permissions:
 
 jobs:
   tck:
-    name: TCK (${{ matrix.leg }})
+    name: TCK (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Fast path: one method's spec file only, as an SDK author would run
-          # while implementing it.
-          - leg: targeted
-            testSpec: "src/tests/crypto-service/test-account-create-transaction.ts"
-            testScript: "test:serial"
-          # Full suite in mocha's parallel mode, to compare against the serial
-          # baseline of 922 passed / 231 failed / 21 hook failures / 470 skipped.
-          - leg: parallel-full
-            testSpec: ""
-            testScript: "test"
+          - shard: crypto
+            spec: "src/tests/crypto-service/*.ts"
+          - shard: token-a
+            spec: "src/tests/token-service/test-token-a*.ts src/tests/token-service/test-token-b*.ts src/tests/token-service/test-token-c*.ts src/tests/token-service/test-token-d*.ts src/tests/token-service/test-token-f*.ts src/tests/token-service/test-token-g*.ts"
+          - shard: token-b
+            spec: "src/tests/token-service/test-token-i*.ts src/tests/token-service/test-token-m*.ts src/tests/token-service/test-token-n*.ts src/tests/token-service/test-token-p*.ts src/tests/token-service/test-token-r*.ts src/tests/token-service/test-token-u*.ts src/tests/token-service/test-token-w*.ts"
+          - shard: topic
+            spec: "src/tests/topic-service/*.ts"
+          - shard: contract-file
+            spec: "src/tests/contract-service/*.ts src/tests/file-service/*.ts src/tests/ethereum/*.ts"
+          - shard: schedule-node
+            spec: "src/tests/schedule-service/*.ts src/tests/node-service/*.ts"
 
     steps:
       - name: Checkout repository
@@ -41,7 +49,7 @@ jobs:
         with:
           installMirrorNode: true
 
-      - name: Run TCK test
+      - name: Run TCK shard
         id: tck
         uses: danielmarv/hiero-tck-runner@Daniel
         with:
@@ -49,18 +57,15 @@ jobs:
           serverEnv: |
             TCK_PORT=8544
             TCK_HOST=0.0.0.0
-          testSpec: ${{ matrix.testSpec }}
-          testScript: ${{ matrix.testScript }}
-          artifactName: tck-report-${{ matrix.leg }}
+          testSpec: ${{ matrix.spec }}
+          artifactName: tck-report-${{ matrix.shard }}
 
-      - name: Show TCK outputs
+      - name: Shard result
         if: always()
         run: |
-          echo "leg=${{ matrix.leg }}"
-          echo "total=${{ steps.tck.outputs.total }}"
-          echo "passed=${{ steps.tck.outputs.passed }}"
-          echo "failed=${{ steps.tck.outputs.failed }}"
-          echo "pending=${{ steps.tck.outputs.pending }}"
-          echo "hookFailures=${{ steps.tck.outputs.hookFailures }}"
+          echo "shard=${{ matrix.shard }}"
+          echo "passed=${{ steps.tck.outputs.passed }} / ${{ steps.tck.outputs.total }}"
+          echo "genuineFailures=${{ steps.tck.outputs.genuineFailures }}"
+          echo "infraFailures=${{ steps.tck.outputs.infraFailures }}"
           echo "skipped=${{ steps.tck.outputs.skipped }}"
-          echo "registered=${{ steps.tck.outputs.registered }}"
+          echo "unimplemented=${{ steps.tck.outputs.unimplementedMethods }}"
