@@ -1,0 +1,41 @@
+name: TCK Runner Test
+
+# Manual only - this is a harness for exercising the hiero-tck-runner action,
+# not a required PR check.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  tck:
+    name: Run Hiero TCK Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare Hiero Solo
+        id: solo
+        uses: hiero-ledger/hiero-solo-action@v0.23.0
+        with:
+          installMirrorNode: true
+
+      - name: Run TCK test
+        id: tck
+        uses: danielmarv/hiero-tck-runner@Daniel
+        with:
+          dockerfilePath: ./tck/Dockerfile
+          artifactName: tck-report-python
+
+      - name: Show TCK outputs
+        if: always()
+        run: |
+          echo "total=${{ steps.tck.outputs.total }}"
+          echo "passed=${{ steps.tck.outputs.passed }}"
+          echo "failed=${{ steps.tck.outputs.failed }}"
+          echo "pending=${{ steps.tck.outputs.pending }}"
+          echo "reportPath=${{ steps.tck.outputs.reportPath }}"
