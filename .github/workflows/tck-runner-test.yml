@@ -3,6 +3,9 @@ name: TCK Runner Test
 # Manual only - this is a harness for exercising the hiero-tck-runner action,
 # not a required PR check.
 on:
+  push:
+    branches:
+      - "tck-runner-test"
   workflow_dispatch: {}
 
 permissions:
