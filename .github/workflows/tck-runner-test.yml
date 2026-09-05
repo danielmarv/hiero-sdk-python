@@ -1,7 +1,6 @@
 name: TCK Runner Test
 
-# Manual only - this is a harness for exercising the hiero-tck-runner action,
-# not a required PR check.
+# Manual/branch harness for exercising the hiero-tck-runner action.
 on:
   push:
     branches:
@@ -13,9 +12,24 @@ permissions:
 
 jobs:
   tck:
-    name: Run Hiero TCK Suite
+    name: TCK (${{ matrix.leg }})
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Fast path: one method's spec file only, as an SDK author would run
+          # while implementing it.
+          - leg: targeted
+            testSpec: "src/tests/crypto-service/test-account-create-transaction.ts"
+            testScript: "test:serial"
+          # Full suite in mocha's parallel mode, to compare against the serial
+          # baseline of 922 passed / 231 failed / 21 hook failures / 470 skipped.
+          - leg: parallel-full
+            testSpec: ""
+            testScript: "test"
 
     steps:
       - name: Checkout repository
@@ -32,13 +46,21 @@ jobs:
         uses: danielmarv/hiero-tck-runner@Daniel
         with:
           dockerfilePath: ./tck/Dockerfile
-          artifactName: tck-report-python
+          serverEnv: |
+            TCK_PORT=8544
+            TCK_HOST=0.0.0.0
+          testSpec: ${{ matrix.testSpec }}
+          testScript: ${{ matrix.testScript }}
+          artifactName: tck-report-${{ matrix.leg }}
 
       - name: Show TCK outputs
         if: always()
         run: |
+          echo "leg=${{ matrix.leg }}"
           echo "total=${{ steps.tck.outputs.total }}"
           echo "passed=${{ steps.tck.outputs.passed }}"
           echo "failed=${{ steps.tck.outputs.failed }}"
           echo "pending=${{ steps.tck.outputs.pending }}"
-          echo "reportPath=${{ steps.tck.outputs.reportPath }}"
+          echo "hookFailures=${{ steps.tck.outputs.hookFailures }}"
+          echo "skipped=${{ steps.tck.outputs.skipped }}"
+          echo "registered=${{ steps.tck.outputs.registered }}"
