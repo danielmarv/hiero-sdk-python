@@ -20,7 +20,7 @@ jobs:
   tck:
     name: TCK (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
 
     strategy:
       fail-fast: false
@@ -38,6 +38,11 @@ jobs:
             spec: "src/tests/contract-service/*.ts src/tests/file-service/*.ts src/tests/ethereum/*.ts"
           - shard: schedule-node
             spec: "src/tests/schedule-service/*.ts src/tests/node-service/*.ts"
+          # Whole suite through test:ci on one network, to check the reported
+          # 16-20 minute runtime and whether parallel mode records any
+          # per-test detail.
+          - shard: full-test-ci
+            spec: ""
 
     steps:
       - name: Checkout repository
@@ -57,7 +62,7 @@ jobs:
           serverEnv: |
             TCK_PORT=8544
             TCK_HOST=0.0.0.0
-          testSpec: ${{ matrix.spec }}
+          testMatrix: ${{ matrix.spec }}
           artifactName: tck-report-${{ matrix.shard }}
 
       - name: Shard result
