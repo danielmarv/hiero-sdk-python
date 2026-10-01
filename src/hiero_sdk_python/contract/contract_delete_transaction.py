@@ -165,3 +165,30 @@ class ContractDeleteTransaction(Transaction):
                 delete contracts.
         """
         return _Method(transaction_func=channel.smart_contract.deleteContract, query_func=None)
+
+    @classmethod
+    def _from_protobuf(cls, transaction_body, body_bytes: bytes, sig_map):
+        """
+        Creates a ContractDeleteTransaction instance from protobuf components.
+
+        Args:
+            transaction_body: The parsed TransactionBody protobuf
+            body_bytes (bytes): The raw bytes of the transaction body
+            sig_map: The SignatureMap protobuf containing signatures
+
+        Returns:
+            ContractDeleteTransaction: A new transaction instance with all fields restored
+        """
+        transaction = super()._from_protobuf(transaction_body, body_bytes, sig_map)
+
+        if transaction_body.HasField("contractDeleteInstance"):
+            pb = transaction_body.contractDeleteInstance
+            if pb.HasField("contractID"):
+                transaction.contract_id = ContractId._from_proto(pb.contractID)
+            if pb.HasField("transferAccountID"):
+                transaction.transfer_account_id = AccountId._from_proto(pb.transferAccountID)
+            if pb.HasField("transferContractID"):
+                transaction.transfer_contract_id = ContractId._from_proto(pb.transferContractID)
+            transaction.permanent_removal = pb.permanent_removal
+
+        return transaction

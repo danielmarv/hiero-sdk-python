@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from hiero_sdk_python.account.account_id import AccountId
 from hiero_sdk_python.contract.contract_execute_transaction import (
     ContractExecuteTransaction,
 )
@@ -28,6 +29,7 @@ from hiero_sdk_python.hapi.services.schedulable_transaction_body_pb2 import (
 )
 from hiero_sdk_python.hbar import Hbar
 from hiero_sdk_python.response_code import ResponseCode
+from hiero_sdk_python.transaction.transaction import Transaction
 from tests.unit.mock_server import mock_hedera_servers
 
 
@@ -384,3 +386,44 @@ def test_contract_execute_transaction_can_execute():
 
         assert receipt.status == ResponseCode.SUCCESS, "Transaction should have succeeded"
         assert str(receipt.contract_id) == str(contract_id)
+
+
+def _round_trip(tx, transaction_id):
+    """Freeze a transaction, serialize it and deserialize it again."""
+    tx.set_transaction_id(transaction_id)
+    tx.set_node_account_ids([AccountId(0, 0, 3)])
+    tx.freeze()
+    tx_bytes = tx.to_bytes()
+    return tx_bytes, Transaction.from_bytes(tx_bytes)
+
+
+def test_from_bytes_restores_all_fields(transaction_id, execute_params):
+    """Test that from_bytes restores every field."""
+    tx = ContractExecuteTransaction(
+        contract_id=execute_params["contract_id"],
+        gas=execute_params["gas"],
+        amount=Hbar(2),
+        function_parameters=execute_params["function_parameters"],
+    )
+
+    tx_bytes, restored = _round_trip(tx, transaction_id)
+
+    assert isinstance(restored, ContractExecuteTransaction)
+    assert restored.contract_id == execute_params["contract_id"]
+    assert restored.gas == execute_params["gas"]
+    assert restored.amount == Hbar(2).to_tinybars()
+    assert restored.function_parameters == execute_params["function_parameters"]
+    assert restored.to_bytes() == tx_bytes
+
+
+def test_from_bytes_with_unset_fields(transaction_id, execute_params):
+    """Test that plain scalars left unset take their proto defaults."""
+    tx = ContractExecuteTransaction(contract_id=execute_params["contract_id"])
+
+    _, restored = _round_trip(tx, transaction_id)
+
+    assert restored.contract_id == execute_params["contract_id"]
+    # gas, amount and functionParameters are plain proto3 scalars without presence.
+    assert restored.gas == 0
+    assert restored.amount == 0
+    assert restored.function_parameters == b""

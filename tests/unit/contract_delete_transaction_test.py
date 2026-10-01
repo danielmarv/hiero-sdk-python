@@ -13,6 +13,7 @@ from hiero_sdk_python.contract.contract_delete_transaction import (
     ContractDeleteTransaction,
 )
 from hiero_sdk_python.contract.contract_id import ContractId
+from hiero_sdk_python.transaction.transaction import Transaction
 
 
 pytestmark = pytest.mark.unit
@@ -410,3 +411,57 @@ def test_constructor_parameter_combinations():
     assert delete_tx.transfer_contract_id is None
     assert delete_tx.transfer_account_id is None
     assert delete_tx.permanent_removal is True
+
+
+def _round_trip(tx, transaction_id):
+    """Freeze a transaction, serialize it and deserialize it again."""
+    tx.set_transaction_id(transaction_id)
+    tx.set_node_account_ids([AccountId(0, 0, 3)])
+    tx.freeze()
+    tx_bytes = tx.to_bytes()
+    return tx_bytes, Transaction.from_bytes(tx_bytes)
+
+
+def test_from_bytes_restores_transfer_account_arm(transaction_id, delete_params):
+    """Test that from_bytes restores the transferAccountID obtainer arm."""
+    tx = ContractDeleteTransaction(
+        contract_id=delete_params["contract_id"],
+        transfer_account_id=delete_params["transfer_account_id"],
+        permanent_removal=True,
+    )
+
+    tx_bytes, restored = _round_trip(tx, transaction_id)
+
+    assert isinstance(restored, ContractDeleteTransaction)
+    assert restored.contract_id == delete_params["contract_id"]
+    assert restored.transfer_account_id == delete_params["transfer_account_id"]
+    assert restored.transfer_contract_id is None
+    assert restored.permanent_removal is True
+    assert restored.to_bytes() == tx_bytes
+
+
+def test_from_bytes_restores_transfer_contract_arm(transaction_id, delete_params):
+    """Test that from_bytes restores the transferContractID obtainer arm."""
+    tx = ContractDeleteTransaction(
+        contract_id=delete_params["contract_id"],
+        transfer_contract_id=delete_params["transfer_contract_id"],
+    )
+
+    tx_bytes, restored = _round_trip(tx, transaction_id)
+
+    assert restored.transfer_contract_id == delete_params["transfer_contract_id"]
+    assert restored.transfer_account_id is None
+    assert restored.to_bytes() == tx_bytes
+
+
+def test_from_bytes_with_unset_fields(transaction_id, delete_params):
+    """Test that an unset obtainer stays None and permanent_removal takes its proto default."""
+    tx = ContractDeleteTransaction(contract_id=delete_params["contract_id"])
+
+    _, restored = _round_trip(tx, transaction_id)
+
+    assert restored.contract_id == delete_params["contract_id"]
+    assert restored.transfer_account_id is None
+    assert restored.transfer_contract_id is None
+    # permanent_removal is a plain proto3 bool, so "unset" is indistinguishable from False.
+    assert restored.permanent_removal is False

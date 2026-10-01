@@ -180,3 +180,28 @@ class ContractExecuteTransaction(Transaction):
             transaction_func=channel.smart_contract.contractCallMethod,
             query_func=None,
         )
+
+    @classmethod
+    def _from_protobuf(cls, transaction_body, body_bytes: bytes, sig_map):
+        """
+        Creates a ContractExecuteTransaction instance from protobuf components.
+
+        Args:
+            transaction_body: The parsed TransactionBody protobuf
+            body_bytes (bytes): The raw bytes of the transaction body
+            sig_map: The SignatureMap protobuf containing signatures
+
+        Returns:
+            ContractExecuteTransaction: A new transaction instance with all fields restored
+        """
+        transaction = super()._from_protobuf(transaction_body, body_bytes, sig_map)
+
+        if transaction_body.HasField("contractCall"):
+            pb = transaction_body.contractCall
+            if pb.HasField("contractID"):
+                transaction.contract_id = ContractId._from_proto(pb.contractID)
+            transaction.gas = pb.gas
+            transaction.amount = pb.amount
+            transaction.function_parameters = pb.functionParameters
+
+        return transaction

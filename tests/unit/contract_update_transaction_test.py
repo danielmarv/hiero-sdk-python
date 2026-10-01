@@ -18,6 +18,8 @@ from hiero_sdk_python.hapi.services.schedulable_transaction_body_pb2 import (
     SchedulableTransactionBody,
 )
 from hiero_sdk_python.hbar import Hbar
+from hiero_sdk_python.timestamp import Timestamp
+from hiero_sdk_python.transaction.transaction import Transaction
 
 
 pytestmark = pytest.mark.unit
@@ -499,3 +501,110 @@ def test_decline_reward_false(contract_id):
     tx = ContractUpdateTransaction().set_contract_id(contract_id).set_decline_reward(False)
 
     assert tx.decline_reward is False
+
+
+def _round_trip(tx, transaction_id):
+    """Freeze a transaction, serialize it and deserialize it again."""
+    tx.set_transaction_id(transaction_id)
+    tx.set_node_account_ids([AccountId(0, 0, 3)])
+    tx.freeze()
+    tx_bytes = tx.to_bytes()
+    return tx_bytes, Transaction.from_bytes(tx_bytes)
+
+
+def test_from_bytes_restores_all_fields(transaction_id, contract_id):
+    """Test that from_bytes restores every field set with a staked account."""
+    admin_key = PrivateKey.generate_ed25519().public_key()
+    tx = ContractUpdateTransaction(
+        ContractUpdateParams(
+            contract_id=contract_id,
+            expiration_time=Timestamp(1_800_000_000, 42),
+            admin_key=admin_key,
+            auto_renew_period=Duration(7_000_000),
+            contract_memo="round trip",
+            max_automatic_token_associations=10,
+            auto_renew_account_id=AccountId(0, 0, 12),
+            staked_account_id=AccountId(0, 0, 13),
+            decline_reward=False,
+        )
+    )
+
+    tx_bytes, restored = _round_trip(tx, transaction_id)
+
+    assert isinstance(restored, ContractUpdateTransaction)
+    assert restored.contract_id == contract_id
+    assert restored.expiration_time == Timestamp(1_800_000_000, 42)
+    assert restored.admin_key.to_bytes_raw() == admin_key.to_bytes_raw()
+    assert restored.auto_renew_period == Duration(7_000_000)
+    assert restored.contract_memo == "round trip"
+    assert restored.max_automatic_token_associations == 10
+    assert restored.auto_renew_account_id == AccountId(0, 0, 12)
+    assert restored.staked_account_id == AccountId(0, 0, 13)
+    assert restored.staked_node_id is None
+    assert restored.decline_reward is False
+    assert restored.to_bytes() == tx_bytes
+
+
+def test_from_bytes_preserves_zero_and_empty_values(transaction_id, contract_id):
+    """Test that zero and empty values on presence-tracked fields are not mistaken for unset."""
+    tx = (
+        ContractUpdateTransaction()
+        .set_contract_id(contract_id)
+        .set_contract_memo("")
+        .set_max_automatic_token_associations(0)
+        .set_staked_node_id(0)
+    )
+
+    _, restored = _round_trip(tx, transaction_id)
+
+    assert restored.contract_memo == ""
+    assert restored.max_automatic_token_associations == 0
+    assert restored.staked_node_id == 0
+    assert restored.staked_account_id is None
+
+
+def test_from_bytes_restores_clear_sentinels(transaction_id, contract_id):
+    """Test that the 0.0.0 clear sentinels for auto-renew and staked accounts survive a round trip."""
+    tx = (
+        ContractUpdateTransaction()
+        .set_contract_id(contract_id)
+        .set_auto_renew_account_id(AccountId(0, 0, 0))
+        .set_staked_account_id(AccountId(0, 0, 0))
+    )
+
+    tx_bytes, restored = _round_trip(tx, transaction_id)
+
+    assert restored.auto_renew_account_id == AccountId(0, 0, 0)
+    assert restored.staked_account_id == AccountId(0, 0, 0)
+    assert restored.to_bytes() == tx_bytes
+
+
+def test_from_bytes_with_unset_fields(transaction_id, contract_id):
+    """Test that fields left unset come back as None."""
+    tx = ContractUpdateTransaction().set_contract_id(contract_id)
+
+    _, restored = _round_trip(tx, transaction_id)
+
+    assert restored.contract_id == contract_id
+    assert restored.expiration_time is None
+    assert restored.admin_key is None
+    assert restored.auto_renew_period is None
+    assert restored.contract_memo is None
+    assert restored.max_automatic_token_associations is None
+    assert restored.auto_renew_account_id is None
+    assert restored.staked_account_id is None
+    assert restored.staked_node_id is None
+    assert restored.decline_reward is None
+
+
+def test_from_protobuf_reads_deprecated_memo_arm(transaction_id, contract_id):
+    """Test that a memo sent in the deprecated plain-string arm of memoField is restored."""
+    tx = ContractUpdateTransaction().set_contract_id(contract_id)
+    tx.set_transaction_id(transaction_id)
+    tx.set_node_account_ids([AccountId(0, 0, 3)])
+    body = tx.build_transaction_body()
+    body.contractUpdateInstance.memo = "legacy memo"
+
+    restored = ContractUpdateTransaction._from_protobuf(body, body.SerializeToString(), None)
+
+    assert restored.contract_memo == "legacy memo"

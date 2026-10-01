@@ -36,6 +36,7 @@ from hiero_sdk_python.hapi.services.transaction_response_pb2 import (
 )
 from hiero_sdk_python.hbar import Hbar
 from hiero_sdk_python.response_code import ResponseCode
+from hiero_sdk_python.transaction.transaction import Transaction
 from tests.unit.mock_server import mock_hedera_servers
 
 
@@ -546,3 +547,86 @@ def test_contract_create_params_dataclass():
     assert params_default.staked_account_id is None
     assert params_default.staked_node_id is None
     assert params_default.decline_reward is None
+
+
+def _round_trip(tx, transaction_id):
+    """Freeze a transaction, serialize it and deserialize it again."""
+    tx.set_transaction_id(transaction_id)
+    tx.set_node_account_ids([AccountId(0, 0, 3)])
+    tx.freeze()
+    tx_bytes = tx.to_bytes()
+    return tx_bytes, Transaction.from_bytes(tx_bytes)
+
+
+def test_from_bytes_restores_all_fields(transaction_id):
+    """Test that from_bytes restores every field set with inline bytecode and a staked node."""
+    admin_key = PrivateKey.generate_ed25519().public_key()
+    tx = ContractCreateTransaction(
+        ContractCreateParams(
+            bytecode=b"\x60\x80\x60\x40",
+            proxy_account_id=AccountId(0, 0, 10),
+            admin_key=admin_key,
+            gas=100_000,
+            initial_balance=5_000,
+            auto_renew_period=Duration(7_000_000),
+            parameters=b"\x01\x02",
+            contract_memo="round trip",
+            auto_renew_account_id=AccountId(0, 0, 11),
+            max_automatic_token_associations=7,
+            staked_node_id=4,
+            decline_reward=True,
+        )
+    )
+
+    tx_bytes, restored = _round_trip(tx, transaction_id)
+
+    assert isinstance(restored, ContractCreateTransaction)
+    assert restored.bytecode == b"\x60\x80\x60\x40"
+    assert restored.bytecode_file_id is None
+    assert restored.proxy_account_id == AccountId(0, 0, 10)
+    assert restored.admin_key.to_bytes_raw() == admin_key.to_bytes_raw()
+    assert restored.gas == 100_000
+    assert restored.initial_balance == 5_000
+    assert restored.auto_renew_period == Duration(7_000_000)
+    assert restored.parameters == b"\x01\x02"
+    assert restored.contract_memo == "round trip"
+    assert restored.auto_renew_account_id == AccountId(0, 0, 11)
+    assert restored.max_automatic_token_associations == 7
+    assert restored.staked_node_id == 4
+    assert restored.staked_account_id is None
+    assert restored.decline_reward is True
+    assert restored.to_bytes() == tx_bytes
+
+
+def test_from_bytes_restores_file_id_and_staked_account_arms(transaction_id):
+    """Test that from_bytes restores the fileID and staked_account_id oneof arms."""
+    tx = ContractCreateTransaction().set_bytecode_file_id(FileId(0, 0, 5)).set_staked_account_id(AccountId(0, 0, 12))
+
+    tx_bytes, restored = _round_trip(tx, transaction_id)
+
+    assert restored.bytecode_file_id == FileId(0, 0, 5)
+    assert restored.bytecode is None
+    assert restored.staked_account_id == AccountId(0, 0, 12)
+    assert restored.staked_node_id is None
+    assert restored.to_bytes() == tx_bytes
+
+
+def test_from_bytes_with_unset_fields(transaction_id):
+    """Test that unset message fields stay None and plain scalars take their proto defaults."""
+    tx = ContractCreateTransaction().set_bytecode_file_id(FileId(0, 0, 5))
+
+    _, restored = _round_trip(tx, transaction_id)
+
+    assert restored.admin_key is None
+    assert restored.proxy_account_id is None
+    assert restored.auto_renew_account_id is None
+    assert restored.staked_account_id is None
+    assert restored.staked_node_id is None
+    assert restored.auto_renew_period == Duration(DEFAULT_AUTO_RENEW_PERIOD)
+    # Plain proto3 scalars carry no presence, so "unset" is indistinguishable from the default.
+    assert restored.gas == 0
+    assert restored.initial_balance == 0
+    assert restored.parameters == b""
+    assert restored.contract_memo == ""
+    assert restored.max_automatic_token_associations == 0
+    assert restored.decline_reward is False

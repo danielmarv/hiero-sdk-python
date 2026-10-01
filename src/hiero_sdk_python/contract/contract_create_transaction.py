@@ -424,3 +424,45 @@ class ContractCreateTransaction(Transaction):
                 create contracts.
         """
         return _Method(transaction_func=channel.smart_contract.createContract, query_func=None)
+
+    @classmethod
+    def _from_protobuf(cls, transaction_body, body_bytes: bytes, sig_map):
+        """
+        Creates a ContractCreateTransaction instance from protobuf components.
+
+        Args:
+            transaction_body: The parsed TransactionBody protobuf
+            body_bytes (bytes): The raw bytes of the transaction body
+            sig_map: The SignatureMap protobuf containing signatures
+
+        Returns:
+            ContractCreateTransaction: A new transaction instance with all fields restored
+        """
+        transaction = super()._from_protobuf(transaction_body, body_bytes, sig_map)
+
+        if transaction_body.HasField("contractCreateInstance"):
+            pb = transaction_body.contractCreateInstance
+            if pb.HasField("fileID"):
+                transaction.bytecode_file_id = FileId._from_proto(pb.fileID)
+            if pb.HasField("initcode"):
+                transaction.bytecode = pb.initcode
+            if pb.HasField("adminKey"):
+                transaction.admin_key = Key.from_proto_key(pb.adminKey)
+            transaction.gas = pb.gas
+            transaction.initial_balance = pb.initialBalance
+            if pb.HasField("proxyAccountID"):
+                transaction.proxy_account_id = AccountId._from_proto(pb.proxyAccountID)
+            if pb.HasField("autoRenewPeriod"):
+                transaction.auto_renew_period = Duration._from_proto(pb.autoRenewPeriod)
+            transaction.parameters = pb.constructorParameters
+            transaction.contract_memo = pb.memo
+            transaction.max_automatic_token_associations = pb.max_automatic_token_associations
+            if pb.HasField("auto_renew_account_id"):
+                transaction.auto_renew_account_id = AccountId._from_proto(pb.auto_renew_account_id)
+            if pb.HasField("staked_account_id"):
+                transaction.staked_account_id = AccountId._from_proto(pb.staked_account_id)
+            if pb.HasField("staked_node_id"):
+                transaction.staked_node_id = pb.staked_node_id
+            transaction.decline_reward = pb.decline_reward
+
+        return transaction

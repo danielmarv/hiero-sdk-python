@@ -139,3 +139,27 @@ class EthereumTransaction(Transaction):
             transaction_func=channel.smart_contract.callEthereum,
             query_func=None,
         )
+
+    @classmethod
+    def _from_protobuf(cls, transaction_body, body_bytes: bytes, sig_map):
+        """
+        Creates an EthereumTransaction instance from protobuf components.
+
+        Args:
+            transaction_body: The parsed TransactionBody protobuf
+            body_bytes (bytes): The raw bytes of the transaction body
+            sig_map: The SignatureMap protobuf containing signatures
+
+        Returns:
+            EthereumTransaction: A new transaction instance with all fields restored
+        """
+        transaction = super()._from_protobuf(transaction_body, body_bytes, sig_map)
+
+        if transaction_body.HasField("ethereumTransaction"):
+            pb = transaction_body.ethereumTransaction
+            transaction.ethereum_data = pb.ethereum_data
+            if pb.HasField("call_data"):
+                transaction.call_data = FileId._from_proto(pb.call_data)
+            transaction.max_gas_allowed = pb.max_gas_allowance
+
+        return transaction

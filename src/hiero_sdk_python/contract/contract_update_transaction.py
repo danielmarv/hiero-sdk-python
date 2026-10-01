@@ -340,3 +340,47 @@ class ContractUpdateTransaction(Transaction):
             _Method: An object containing the transaction function to update a contract.
         """
         return _Method(transaction_func=channel.smart_contract.updateContract, query_func=None)
+
+    @classmethod
+    def _from_protobuf(cls, transaction_body, body_bytes: bytes, sig_map):
+        """
+        Creates a ContractUpdateTransaction instance from protobuf components.
+
+        Args:
+            transaction_body: The parsed TransactionBody protobuf
+            body_bytes (bytes): The raw bytes of the transaction body
+            sig_map: The SignatureMap protobuf containing signatures
+
+        Returns:
+            ContractUpdateTransaction: A new transaction instance with all fields restored
+        """
+        transaction = super()._from_protobuf(transaction_body, body_bytes, sig_map)
+
+        if transaction_body.HasField("contractUpdateInstance"):
+            pb = transaction_body.contractUpdateInstance
+            if pb.HasField("contractID"):
+                transaction.contract_id = ContractId._from_proto(pb.contractID)
+            if pb.HasField("expirationTime"):
+                transaction.expiration_time = Timestamp._from_protobuf(pb.expirationTime)
+            if pb.HasField("adminKey"):
+                transaction.admin_key = Key.from_proto_key(pb.adminKey)
+            if pb.HasField("autoRenewPeriod"):
+                transaction.auto_renew_period = Duration._from_proto(pb.autoRenewPeriod)
+            # memoField oneof: this SDK writes memoWrapper, but accept the deprecated memo arm too.
+            if pb.HasField("memoWrapper"):
+                transaction.contract_memo = pb.memoWrapper.value
+            elif pb.HasField("memo"):
+                transaction.contract_memo = pb.memo
+            if pb.HasField("max_automatic_token_associations"):
+                transaction.max_automatic_token_associations = pb.max_automatic_token_associations.value
+            # An empty AccountID (the clear encoding) decodes to the 0.0.0 clear sentinel.
+            if pb.HasField("auto_renew_account_id"):
+                transaction.auto_renew_account_id = AccountId._from_proto(pb.auto_renew_account_id)
+            if pb.HasField("staked_account_id"):
+                transaction.staked_account_id = AccountId._from_proto(pb.staked_account_id)
+            if pb.HasField("staked_node_id"):
+                transaction.staked_node_id = pb.staked_node_id
+            if pb.HasField("decline_reward"):
+                transaction.decline_reward = pb.decline_reward.value
+
+        return transaction

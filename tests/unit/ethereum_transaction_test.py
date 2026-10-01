@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from hiero_sdk_python.account.account_id import AccountId
 from hiero_sdk_python.contract.ethereum_transaction import EthereumTransaction
 from hiero_sdk_python.file.file_id import FileId
 from hiero_sdk_python.hapi.services import (
@@ -18,6 +19,7 @@ from hiero_sdk_python.hapi.services import (
     transaction_response_pb2,
 )
 from hiero_sdk_python.response_code import ResponseCode
+from hiero_sdk_python.transaction.transaction import Transaction
 from tests.unit.mock_server import mock_hedera_servers
 
 
@@ -233,3 +235,41 @@ def test_ethereum_transaction_can_execute():
         receipt = transaction.execute(client)
 
         assert receipt.status == ResponseCode.SUCCESS, "Transaction should have succeeded"
+
+
+def _round_trip(tx, transaction_id):
+    """Freeze a transaction, serialize it and deserialize it again."""
+    tx.set_transaction_id(transaction_id)
+    tx.set_node_account_ids([AccountId(0, 0, 3)])
+    tx.freeze()
+    tx_bytes = tx.to_bytes()
+    return tx_bytes, Transaction.from_bytes(tx_bytes)
+
+
+def test_from_bytes_restores_all_fields(transaction_id, ethereum_params):
+    """Test that from_bytes restores every field."""
+    tx = EthereumTransaction(
+        ethereum_data=ethereum_params["ethereum_data"],
+        call_data_file_id=ethereum_params["call_data"],
+        max_gas_allowed=ethereum_params["max_gas_allowed"],
+    )
+
+    tx_bytes, restored = _round_trip(tx, transaction_id)
+
+    assert isinstance(restored, EthereumTransaction)
+    assert restored.ethereum_data == ethereum_params["ethereum_data"]
+    assert restored.call_data == ethereum_params["call_data"]
+    assert restored.max_gas_allowed == ethereum_params["max_gas_allowed"]
+    assert restored.to_bytes() == tx_bytes
+
+
+def test_from_bytes_with_unset_fields(transaction_id, ethereum_params):
+    """Test that an unset call data file stays None and max_gas_allowed takes its proto default."""
+    tx = EthereumTransaction(ethereum_data=ethereum_params["ethereum_data"])
+
+    _, restored = _round_trip(tx, transaction_id)
+
+    assert restored.ethereum_data == ethereum_params["ethereum_data"]
+    assert restored.call_data is None
+    # max_gas_allowance is a plain proto3 int64 without presence.
+    assert restored.max_gas_allowed == 0
